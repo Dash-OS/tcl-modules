@@ -44,7 +44,7 @@ namespace eval foo {
   }
 }
 
-foo::start
+foo::start one two three
 ```
 
 ##### TclOO Example
@@ -64,7 +64,46 @@ package require callback
 }
 
 set obj [MyClass new]
-$obj start
+$obj start one two three
+```
+
+---
+
+### `cmdlist` *?...args?*
+
+An extremely simple but useful package that helps when you have to construct commands 
+that may need to be evaluated both in the current context as well as in another (such 
+as when calling uplevel or doing a coroutine injection).  
+
+##### Simple Example 
+
+While a silly example, it is the simplest example of how this might be useful I could 
+think of.  In general when we use this it is for building control structures and/or 
+for coroutine injection.
+
+```tcl
+package require cmdlist
+
+proc foo { name value } {
+  set one   foo
+  set two   bar
+  set three baz
+  modify $name $value
+}
+
+proc modify { varname value } {
+  uplevel 1 [cmdlist \
+    {report $one $two $three} \
+    [list set $varname $value] \
+    {report $one $two $three}
+  ]
+}
+
+proc report { args } {
+  puts "Value: $args"
+}
+
+foo two newvalue
 ```
 
 ---
