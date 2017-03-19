@@ -1,3 +1,5 @@
+# Contributed by PYK http://wiki.tcl.tk/28961?redir=28962
+# http://wiki.tcl.tk/15566
 proc extend {ens script} {
   uplevel 1 [string map [list %ens [list $ens]] {
     namespace ensemble configure %ens -unknown [list ::apply [list {ens cmd args} {
