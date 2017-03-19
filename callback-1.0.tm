@@ -1,0 +1,1 @@
+proc callback {args} {tailcall namespace code $args}
