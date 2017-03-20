@@ -21,9 +21,16 @@ Feel free to use any of these however you wish.
 
 I will try to provide a basic idea of some of the modules as time goes on.
 
+### Table Of Contents 
+
+ - [callback](#callback)
+ - 
+ 
 ---
 
-### `callback` *command ?...args?*
+### callback
+
+##### `callback` *command ?...args?*
 
 A favorite among many tclers, a simple way to setup a command that will resolve 
 to the current namespace.  This is especially useful when scheduling callbacks 
