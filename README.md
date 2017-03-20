@@ -35,8 +35,8 @@ A favorite among many tclers, a simple way to setup a command that will resolve
 to the current namespace.  This is especially useful when scheduling callbacks 
 from within TclOO Objects.
 
-##### Simple Example 
 
+<details><summary>**Simple Example**</summary><p>
 ```tcl
 package require callback
 
@@ -52,9 +52,11 @@ namespace eval foo {
 
 foo::start one two three
 ```
+</p></details>
 
-##### TclOO Example
 
+
+<details><summary>**TclOO Example**</summary><p>
 ```tcl
 package require callback
 
@@ -72,6 +74,7 @@ package require callback
 set obj [MyClass new]
 $obj start one two three
 ```
+</p></details>
 
 ---
 
@@ -81,7 +84,11 @@ An extremely simple but useful package that helps when you have to construct com
 that may need to be evaluated both in the current context as well as in another (such 
 as when calling uplevel or doing a coroutine injection).  
 
-##### Simple Example 
+<details>
+<summary>
+**Simple Example**
+</summary>
+<p>
 
 While a silly example, it is the simplest example of how this might be useful I could 
 think of.  In general when we use this it is for building control structures and/or 
@@ -115,6 +122,9 @@ foo two newvalue
 # Value: foo newvalue baz
 ```
 
+</p>
+</details>
+
 ---
 
 ### `valias` *source* *alias*
@@ -122,6 +132,12 @@ foo two newvalue
 Another extremely simple one, valias is used to alias a variable to another 
 variable so that their values will always match.  Modifying one will be reflected 
 in the other.  
+
+<details>
+<summary>
+**Simple Example**
+</summary>
+<p>
 
 ```tcl
 package require valias
@@ -141,5 +157,11 @@ puts $bar
 # "Hello, World!"
 
 ```
+
+</p>
+</details>
+
+
+
 
 ---
