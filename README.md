@@ -36,7 +36,7 @@ to the current namespace.  This is especially useful when scheduling callbacks
 from within TclOO Objects.
 
 
-<details><summary>**Simple Example**</summary><p>
+<details><summary><b>Simple Example</b></summary><p>
 
 ```tcl
 package require callback
@@ -58,7 +58,7 @@ foo::start one two three
 
 
 
-<details><summary>**TclOO Example**</summary><p>
+<details><summary><b>TclOO Example</b></summary><p>
 
 ```tcl
 package require callback
@@ -90,7 +90,7 @@ as when calling uplevel or doing a coroutine injection).
 
 <details>
 <summary>
-**Simple Example**
+<b>Simple Example</b>
 </summary>
 <p>
 
@@ -139,7 +139,7 @@ in the other.
 
 <details>
 <summary>
-**Simple Example**
+<b>Simple Example</b>
 </summary>
 <p>
 
