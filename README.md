@@ -104,6 +104,36 @@ proc report { args } {
 }
 
 foo two newvalue
+
+# Value: foo bar baz
+# Value: foo newvalue baz
+```
+
+---
+
+### `valias` *source* *alias*
+
+Another extremely simple one, valias is used to alias a variable to another 
+variable so that their values will always match.  Modifying one will be reflected 
+in the other.  
+
+```tcl
+package require valias
+
+set foo "Hello"
+
+valias foo bar 
+
+puts $bar
+# "Hello"
+
+set bar "Hello, World!"
+
+puts $foo
+# "Hello, World!"
+puts $bar
+# "Hello, World!"
+
 ```
 
 ---
