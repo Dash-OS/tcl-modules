@@ -193,7 +193,7 @@ package require extend
 
 extend string {
   if { [::catch {::string cat}] } {
-    proc cat args { tailcall ::join $args {} }
+    proc cat args { ::join $args {} }
   }
 }
 
