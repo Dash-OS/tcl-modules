@@ -37,6 +37,7 @@ from within TclOO Objects.
 
 
 <details><summary>**Simple Example**</summary><p>
+
 ```tcl
 package require callback
 
@@ -52,11 +53,13 @@ namespace eval foo {
 
 foo::start one two three
 ```
+
 </p></details>
 
 
 
 <details><summary>**TclOO Example**</summary><p>
+
 ```tcl
 package require callback
 
@@ -74,6 +77,7 @@ package require callback
 set obj [MyClass new]
 $obj start one two three
 ```
+
 </p></details>
 
 ---
