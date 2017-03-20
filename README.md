@@ -23,14 +23,13 @@ I will try to provide a basic idea of some of the modules as time goes on.
 
 ### Table Of Contents 
 
- - [callback](#callback)
- - 
+ - [callback](#callback-command-args)
+ - [cmdlist](#cmdlist-args)
+ - [valias](#valias-source-alias)
  
 ---
 
-### callback
-
-##### `callback` *command ?...args?*
+### `callback` *command ?...args?*
 
 A favorite among many tclers, a simple way to setup a command that will resolve 
 to the current namespace.  This is especially useful when scheduling callbacks 
