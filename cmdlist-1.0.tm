@@ -3,4 +3,4 @@
 # variable context.
 # useful when doing things in situations like uplevel
 # uplevel 1 [cmdlist [list puts $localvar] {set $remotevar}]
-proc cmdlist args { format [string repeat {%s;} [llength $args]] {*}$args }
+proc cmdlist args { join $args \; }

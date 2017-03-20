@@ -17,6 +17,9 @@ Feel free to use any of these however you wish.
 
 ##### **If you have any good ones that should be added - send them over!**
 
+Would love to collect any other "awesome" and useful Tcl procs that you find yourself 
+using and others may find useful.  
+
 ## Package Summaries
 
 I will try to provide a basic idea of some of the modules as time goes on.
@@ -31,10 +34,9 @@ I will try to provide a basic idea of some of the modules as time goes on.
 
 ### `callback` *command ?...args?*
 
-A favorite among many tclers, a simple way to setup a command that will resolve 
+A favorite among many tclers, a simple way to setup a callback command that will resolve 
 to the current namespace.  This is especially useful when scheduling callbacks 
 from within TclOO Objects.
-
 
 <details><summary><b>Simple Example</b></summary><p>
 
@@ -56,9 +58,11 @@ foo::start one two three
 
 </p></details>
 
-
-
-<details><summary><b>TclOO Example</b></summary><p>
+<details>
+<summary>
+<b>TclOO Example</b>
+</summary>
+<p>
 
 ```tcl
 package require callback
@@ -78,13 +82,14 @@ set obj [MyClass new]
 $obj start one two three
 ```
 
-</p></details>
+</p>
+</details>
 
 ---
 
 ### `cmdlist` *?...args?*
 
-An extremely simple but useful package that helps when you have to construct commands 
+An extremely simple but useful procedure that helps when you have to construct commands 
 that may need to be evaluated both in the current context as well as in another (such 
 as when calling uplevel or doing a coroutine injection).  
 
@@ -165,7 +170,36 @@ puts $bar
 </p>
 </details>
 
-
-
-
 ---
+
+### `extend` *namespace* *body*
+
+Taking advantage of Tcl's [namespace ensemble](https://www.tcl.tk/man/tcl8.6/TclCmd/namespace.htm#M30) features, 
+extend allows us to "extend" the core Tcl Ensembles with new functionality.  
+
+ - **See Also:** [Tcl Wiki Page](http://wiki.tcl.tk/15566)
+ 
+<details>
+<summary>
+<b>[string cat] polyfill</b>
+</summary>
+<p>
+
+Here is an example of extending string to add 8.6's [string cat] feature in situations 
+that our script may be running in earlier versions.
+
+```tcl
+package require extend
+
+extend string {
+  if { [::catch {::string cat}] } {
+    proc cat args { tailcall ::join $args {} }
+  }
+}
+
+puts [string cat one two]
+# onetwo
+```
+
+</p>
+</details>
