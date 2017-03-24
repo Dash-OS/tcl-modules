@@ -30,6 +30,7 @@ I will try to provide a basic idea of some of the modules as time goes on.
  - [cmdlist](#cmdlist-args)
  - [valias](#valias-source-alias)
  - [extend](#extend-namespace-body)
+ - [run](#run-scoped-vars-level-script)
  - [time parse](#time-parse-args)
  
 ---
