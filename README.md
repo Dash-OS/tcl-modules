@@ -212,6 +212,7 @@ puts [string cat one two]
 
 `[time parse]` is a convenience package 
 
+---
 
 ### `run ?-scoped? ?-vars? ?-level? -- script` 
 
@@ -291,3 +292,6 @@ puts ":: | myvar $myvar"
 
 </p>
 </details>
+
+---
+
