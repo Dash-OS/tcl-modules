@@ -37,11 +37,9 @@ namespace eval ::oo::metaclass {
   constructor {{script {}}} {
     namespace unknown [list ::oo::metaclass::unknown [self]]
     if { [info object class [self]] ne "::oo::metaclass" } {
-      #puts meta
       namespace path [list [namespace current] [info object class [self]] {*}[namespace path] [uplevel 1 { namespace current }]]
       try $script[unset script]
     } else {
-      #puts prefix
       namespace path [list {*}[namespace path] [uplevel 1 { namespace current }]]
       try [format \
         { %s ; %s } \
@@ -68,7 +66,6 @@ namespace eval ::oo::metaclass {
   method namespace {} { namespace current }
   
   method create {name args} {
-    #puts "Create $name in [self]"
     if { [info object class [self]] eq "::oo::metaclass" } {
 
       tailcall my createWithNamespace $name [namespace current]::${name}[incr ::oo::metaclass::i] {*}$args

@@ -29,6 +29,8 @@ I will try to provide a basic idea of some of the modules as time goes on.
  - [callback](#callback-command-args)
  - [cmdlist](#cmdlist-args)
  - [valias](#valias-source-alias)
+ - [extend](#extend-namespace-body)
+ - [time parse](#time-parse-args)
  
 ---
 
@@ -203,3 +205,10 @@ puts [string cat one two]
 
 </p>
 </details>
+
+---
+
+### `time parse` ?...args?
+
+`[time parse]` is a convenience package 
+
