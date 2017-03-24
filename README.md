@@ -219,6 +219,12 @@ puts [string cat one two]
 scoped environment.  It isn't the fastest in the world, but it can be an extremely 
 useful tool in the right situations. 
 
+<details>
+<summary>
+<b>Simple Example</b>
+</summary>
+<p>
+
 ```tcl
 package require run
 
@@ -282,3 +288,6 @@ puts "--- Call ::foo::start ---"
 puts "--- After ::foo::start ---"
 puts ":: | myvar $myvar"
 ```
+
+</p>
+</details>
