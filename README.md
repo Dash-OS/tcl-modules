@@ -218,8 +218,8 @@ puts [string cat one two]
 ### `run ?-scoped? ?-vars? ?-level? -- script` 
 
 `[run]` provides a flexible utility for running a given script within an (optionally)
-scoped environment.  It isn't the fastest in the world, but it can be an extremely 
-useful tool in the right situations. 
+scoped environment.  It is run within "apply" so the return value of the script is the 
+value `[run]` will return.
 
 <details>
 <summary>
@@ -274,12 +274,12 @@ proc ::foo::next_proc args {
   
   puts "::foo::next_proc | known vars | [info vars] | foo $foo"
   
-  run -level 2 -vars myvar -upvar {
+  set response [ run -level 2 -vars myvar -upvar {
     # 2 levels up lets change the value of myvar
     set myvar changed
-  }
+  } ]
   
-  
+  puts "::foo::next_proc | response $response"
   
 }
 
