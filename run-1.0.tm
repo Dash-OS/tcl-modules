@@ -1,5 +1,7 @@
+
 namespace eval ::run {
   variable default [dict create scoped 0 level -1]
+  proc about args {}
 }
 
 proc ::run::runner { adict body args } {
@@ -11,6 +13,9 @@ proc ::run::runner { adict body args } {
     [uplevel 1 { namespace current }] \
   ] {*}[dict values $adict] {*}$args
 }
+
+# run ?-scoped? ?-vars? ?-level? -- script
+
 
 proc ::run { args } {
   set opts [set ::run::default]

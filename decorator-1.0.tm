@@ -35,7 +35,7 @@ proc @define { decorator hookargs args } {
 @define @named { definition command args } \
   -compile {
     switch -- $command {
-      proc {
+      method - proc {
         set argopts [dict create]
         lassign $args proc_name argnames body
         foreach argname $argnames {
@@ -102,8 +102,8 @@ proc @define { decorator hookargs args } {
         }
         if { [info exists named_args] } { dict set argopts named $named_args }
         if { [info exists prefix] } { set body [join [list {*}$prefix $body] \;] }
-        uplevel 1 [list proc _$proc_name $newargnames $body]
-        tailcall proc $proc_name args [join [list \
+        uplevel 1 [list $command _$proc_name $newargnames $body]
+        tailcall $command $proc_name args [join [list \
           [list set definition $argopts] \
           [list set proc_args $newargnames] \
           [list set command $proc_name] \
@@ -158,6 +158,7 @@ proc ::decorator::call_proc {ns definition proc_args command values nargs args} 
     }
     incr i
   }
+  puts call
   tailcall ${ns}::_$command {*}$proc_args
 }
 
