@@ -1,6 +1,28 @@
 package require oo::metaclass
-package require callback
 
+# Currently we need to redefine the metaclass unknown definition to handle our
+# component resolution.  This way we can internally handle creation and deletion
+
+proc ::oo::metaclass::unknown {self what args} {
+  if { [string equal [string index $what 0] *] } {
+    # Our Modifications to metaclasses unknown
+    uplevel 1 [list \
+      [uplevel 1 {namespace current}]::my \
+      @@RenderChild \
+      [uplevel 1 [list namespace which [string range $what 1 end]]] \
+      {*}$args
+    ]
+  } else {
+    # The original metaclass unknown
+    if { $what in [info object methods $self -all] } {
+      tailcall $self $what {*}$args
+    } elseif { [list ::oo::define::$what] in [info commands ::oo::define::*] } {
+      tailcall ::oo::define $self $what {*}$args
+    } else { tailcall ::unknown $what {*}$args }
+  }
+}
+
+  
 namespace eval ::React {}
 
 proc react { cmd args } {
@@ -19,7 +41,7 @@ proc react { cmd args } {
   }
 }
 
-::oo::class create ::ComponentMixin {
+::oo::class create ::React::ComponentMixin {
   variable @@COMPONENT PROPS STATE
   
   constructor {context args} {
@@ -339,10 +361,13 @@ proc react { cmd args } {
   
 }
 
+# Our Component metaclass handles the internal syntax and static values
+# capabilities. 
 ::oo::metaclass create Component {
+
   constructor data {
     next [join [list $data {
-      mixin -append ::ComponentMixin
+      mixin -append ::React::ComponentMixin
     } \;]]
   }
   
@@ -377,11 +402,5 @@ proc react { cmd args } {
   method ref { key } {
     return c::$key
   }
-  
-  # method render_component args {
-  #   puts "Render Component! [self]"
-  #   puts $args
-  # }
-  
   
 }

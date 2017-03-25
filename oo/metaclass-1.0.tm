@@ -16,20 +16,11 @@ namespace eval ::oo::metaclass {
   }
   
   proc unknown {self what args} {
-    if { [string equal [string index $what 0] *] } {
-      uplevel 1 [list \
-        [uplevel 1 {namespace current}]::my \
-        @@RenderChild \
-        [uplevel 1 [list namespace which [string range $what 1 end]]] \
-        {*}$args
-      ]
-    } else {
-      if { $what in [info object methods $self -all] } {
-        tailcall $self $what {*}$args
-      } elseif { [list ::oo::define::$what] in [info commands ::oo::define::*] } {
-        tailcall ::oo::define $self $what {*}$args
-      } else { tailcall ::unknown $what {*}$args }
-    }
+    if { $what in [info object methods $self -all] } {
+      tailcall $self $what {*}$args
+    } elseif { [list ::oo::define::$what] in [info commands ::oo::define::*] } {
+      tailcall ::oo::define $self $what {*}$args
+    } else { tailcall ::unknown $what {*}$args }
   }
   
 }
@@ -61,7 +52,6 @@ namespace eval ::oo::metaclass {
   }
   
   method constructor {argnames body args} {
-    puts "Constructor [self]"
     tailcall ::oo::define [self] constructor $argnames [format {
       %s ; %s } $::oo::metaclass::Build_Constructor_Object $body
     ]
