@@ -85,8 +85,9 @@ proc react { cmd args } {
   
   # Internal method that we call when we want to start a render process.
   method @@Render {} {
-    if { "render" ni [info class methods [info object class [self]] -all] } {
-      # if no render was define, we won't render! nuff' said
+    # We do this as a workaround of the bug 
+    # http://core.tcl.tk/tcl/tktview/900cb0284bcf1bf27038a7ae02c9f1440b150c86
+    if { [my render 1] eq {} } { 
       return
     }
     dict set @@COMPONENT status rendering 1
@@ -299,6 +300,11 @@ proc react { cmd args } {
       }
       my shouldComponentUpdate
     }
+  }
+  
+  method render { {check 0} } {
+    if { $check } { return [self next] }
+    if { [self next] ne {} } { next }
   }
   
   
