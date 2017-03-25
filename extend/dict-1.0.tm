@@ -155,6 +155,20 @@ extend ::dict {
     ::append tempDict [::join $lst " [list $values] "] " [list $values]"
   }
   
+  ::proc zip { dict args } {
+    ::set zip      [::lindex $args end]
+    ::set args     [::lrange $args 0 end-1]
+    ::set response [::dict create]
+    ::dict for { k v } $dict {
+      ::foreach z $zip {
+        ::if { ! [::dict exists $v $z] } { ::set fail 1 ; ::break }
+      }
+      ::if { [::info exists fail] } { ::unset fail ; ::continue }
+      ::foreach z $zip { ::dict lappend response $z [::dict get $v $z] }
+    }
+    ::return $response
+  }
+  
   proc sort {what dict args} {
     ::set res {}
     ::if {$dict eq {}} { ::return }
