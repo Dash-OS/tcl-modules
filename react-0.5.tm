@@ -1,4 +1,9 @@
 package require oo::metaclass
+namespace eval ::react {
+  namespace ensemble create
+  namespace export {[a-z]*}
+  variable i 0
+}
 
 # Currently we need to redefine the metaclass unknown definition to handle our
 # component resolution.  This way we can internally handle creation and deletion
@@ -6,10 +11,12 @@ package require oo::metaclass
 proc ::oo::metaclass::unknown {self what args} {
   if { [string equal [string index $what 0] *] } {
     # Our Modifications to metaclasses unknown
+    set component [uplevel 1 [list namespace which [string range $what 1 end]]]
+    if { $component eq {} } { throw error "$what is not a known component" }
     uplevel 1 [list \
       [uplevel 1 {namespace current}]::my \
       @@RenderChild \
-      [uplevel 1 [list namespace which [string range $what 1 end]]] \
+      $component \
       {*}$args
     ]
   } else {
@@ -22,26 +29,19 @@ proc ::oo::metaclass::unknown {self what args} {
   }
 }
 
-  
-namespace eval ::React {}
 
-proc react { cmd args } {
-  switch -- $cmd {
-    render {
-      set args [ lassign $args component ]
-      if { [info commands $component] eq {} } {
-        set component [uplevel 1 [list namespace which $component]]
-        if { [info commands $component] eq {} } {
-          throw error "$component is not a known component"
-        }
-        
-      }
-      set root [ $component create ::React::Root [dict create order 0 root 1] {*}$args ]
+proc ::react::render args {
+  set args [ lassign $args component ]
+  if { [info commands $component] eq {} } {
+    set component [uplevel 1 [list namespace which $component]]
+    if { [info commands $component] eq {} } {
+      throw error "$component is not a known component"
     }
   }
+  set root [ $component create ::react::root[incr ::react::i] [dict create order 0 root 1] {*}$args ]
 }
 
-::oo::class create ::React::ComponentMixin {
+::oo::class create ::react::mixin {
   variable @@COMPONENT PROPS STATE
   
   constructor {context args} {
@@ -79,12 +79,17 @@ proc react { cmd args } {
       dict unset args key
     }
     if { [dict exists $component c $key] } {
-      dict lappend @@COMPONENT render_queue [list [my @@Child $key]::my setProps $args]
+      dict lappend @@COMPONENT render_queue [list [my @@Child $key]::my setProps [dict create {*}$args]]
     } else {
-      dict lappend @@COMPONENT render_queue [join [list \
-        [subst -nocommands { set _component [$C create [self]::c::$key {o {$child}} {$args}] }] \
-        [format { dict set @@COMPONENT c {%s} ${_component} } $key ] \
-      ] \;]
+      if { $C eq {} || [info commands $C] eq {} } {
+        throw error "$C is not a known Component"
+      } else {
+        dict lappend @@COMPONENT render_queue [join [list \
+          [subst -nocommands { set _component [$C create [self]::c::$key {o {$child}} {$args}] }] \
+          [format { dict set @@COMPONENT c {%s} ${_component} } $key ] \
+        ] \;]
+      }
+      
     }
     dict lappend @@COMPONENT rendered $key
     dict incr @@COMPONENT render_child
@@ -367,7 +372,7 @@ proc react { cmd args } {
 
   constructor data {
     next [join [list $data {
-      mixin -append ::React::ComponentMixin
+      mixin -append ::react::mixin
     } \;]]
   }
   
