@@ -6,6 +6,8 @@ them.
 ### `::oo::metaclass`
 
 ```tcl
+package require oo::metaclass
+
 ::oo::metaclass create Module {
   method static {prop {data {}}} {
     my variable $prop
