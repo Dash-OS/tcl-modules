@@ -32,7 +32,10 @@ I will try to provide a basic idea of some of the modules as time goes on.
  - [extend](#extend-namespace-body)
  - [run](#run-scoped-vars-level-script)
  - [time parse](#time-parse-args)
- 
+ - [pubsub](#pubsub-command-args)
+ - [ensembled](#ensembled)
+
+
 ---
 
 ### `callback` *command ?...args?*
