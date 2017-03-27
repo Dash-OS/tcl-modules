@@ -335,6 +335,9 @@ if { ! [ pubsub dispatch [dict create foo bar] button_one pressed ] } {
 
 #### Unsubscribing by ID or Path
 
+**`pubsub unsubscribe id`**
+**`pubsub unsubscribe_path ?...path?`**
+
 ```tcl
 pubsub unsubscribe MySubscription
 pubsub unsubscribe_path MY_EVENT
@@ -342,11 +345,15 @@ pubsub unsubscribe_path MY_EVENT
 
 #### Triggering a Subscription by ID
 
+**`pubsub trigger id`**
+
 ```tcl
 pubsub trigger MySubscription
 ```
 
 #### Resetting / Removing all Subscriptions
+
+**`pubsub reset`**
 
 ```tcl
 pubsub reset
