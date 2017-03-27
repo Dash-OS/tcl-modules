@@ -4,7 +4,7 @@ Included is a list of some of the modules that we use often within our various
 Tcl Scripts & Applications.  Many of them are extremely small and simple (1-3 lines).  
 
 While many were created by us, some of them were taken or adapted from our various 
-encounters in the wiki, other open source communities, or the excellent Tcl IRC Chatroom. 
+encounters in the [Tcl Wiki](http://wiki.tcl.tk/), other open source communities, or the excellent Tcl IRC Chatroom. 
 We have tried to add credits or links to reference and provide credit whenever possible. 
 If anyone was left out and you see some of your code just let us know and I will get it 
 added as quickly as possible!
@@ -296,3 +296,60 @@ puts ":: | myvar $myvar"
 
 ---
 
+### `pubsub command ?args?`
+
+`[pubsub]` aims to provide an extremely simple publisher/subscriber pattern for 
+handling the execution of one or more commands when a given message/path is 
+published to.
+
+#### Subscribing to a Path
+
+```tcl
+pubsub subscribe MySubscription MY_EVENT my_proc
+# Multiple
+pubsub subscribe MySubscription2 MY_EVENT my_proc
+pubsub subscribe MySubscription3 MY_EVENT my_proc
+# Nested Paths
+pubsub subscribe B1Press   button_one pressed  my_proc
+pubsub subscribe B1Release button_one release  my_proc
+```
+
+#### Publishing to a Path
+
+```tcl
+set total_executed [ pubsub dispatch [dict create foo bar] MY_EVENT ]
+if { ! [ pubsub dispatch [dict create foo bar] button_one pressed ] } {
+  puts "No Subscribers"
+}
+```
+
+---
+
+
+### `ensembled`
+
+`[ensembled]` is really just a nice little convenience wrapper for defining 
+a namespace which will act as an ensemble and will export all procedures that 
+start with a lower-case [a-z] character.
+
+<details>
+<summary>
+<b>Simple Example</b>
+</summary>
+<p>
+
+```tcl
+
+package require ensembled
+
+namespace eval foo ensembled
+
+proc foo::call args { puts $args }
+
+foo call one two three
+
+```
+
+</p>
+</details>
+---

@@ -121,6 +121,8 @@ proc ::react::render args {
     dict set @@COMPONENT render_child 0
     try { my render } on error {result options} {
       my @@Log "An Error Occurred During Render: $result"
+      ~! "Render Error" "An Error Occurred During Rendering: $result" \
+        -context $options
     }
     set component [set @@COMPONENT]
     if { [dict exists $component rendered] && [dict exists $component c] } {
@@ -286,7 +288,9 @@ proc ::react::render args {
   # componentDidUpdate() is invoked immediately after updating occurs. This method 
   # is not called for the initial render.
   method componentDidUpdate { prev_props prev_state } {
-    if { [self next] ne {} } { catch { next $prev_props $prev_state } }
+    if { [self next] ne {} } { 
+      next $prev_props $prev_state
+    }
   }
 
   # componentWillUnmount() is invoked immediately before a component is unmounted and 
@@ -404,8 +408,12 @@ proc ::react::render args {
     } elseif { [info exists $prop] } { return [set $prop] }
   }
   
-  method ref { key } {
-    return c::$key
+  method ref { key args } {
+    if { $args ne {} } {
+      tailcall [uplevel 1 {self}]::c::$key {*}$args
+    } else {
+      return [uplevel 1 {self}]::c::$key
+    }
   }
   
 }

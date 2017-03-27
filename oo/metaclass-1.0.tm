@@ -68,7 +68,6 @@ namespace eval ::oo::metaclass {
   
   method create {name args} {
     if { [info object class [self]] eq "::oo::metaclass" } {
-
       tailcall my createWithNamespace $name [namespace current]::${name}[incr ::oo::metaclass::i] {*}$args
     } else {
       tailcall my createWithNamespace \
