@@ -35,7 +35,7 @@ proc pubsub::unsubscribe id {
   if { [info commands subscriptions::$id] ne {} } { subscriptions::$id destroy }
 }
 
-prc pubsub::unsubscribe_path args {
+proc pubsub::unsubscribe_path args {
   if { [dict exists $::pubsub::subscriptions {*}$args @subscriptions] } {
     foreach id [dict get $::pubsub::subscriptions {*}$args @subscriptions] {
       catch { subscriptions::$id destroy }
