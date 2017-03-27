@@ -307,6 +307,8 @@ published to.
 
 #### Subscribing to a Path
 
+**`pubsub subscribe id ?...path? callback`**
+
 ```tcl
 pubsub subscribe MySubscription MY_EVENT my_proc
 # Multiple
@@ -319,8 +321,13 @@ pubsub subscribe B1Release button_one release  my_proc
 
 #### Publishing to a Path
 
+**`pubsub dispatch data ?...path?`**
+
 ```tcl
+# Returns the total # of subscribers that were executed as a 
+# result of the dispatch.
 set total_executed [ pubsub dispatch [dict create foo bar] MY_EVENT ]
+
 if { ! [ pubsub dispatch [dict create foo bar] button_one pressed ] } {
   puts "No Subscribers"
 }

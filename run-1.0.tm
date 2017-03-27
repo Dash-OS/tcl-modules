@@ -14,9 +14,6 @@ proc ::run::runner { adict body args } {
   ] {*}[dict values $adict] {*}$args
 }
 
-# run ?-scoped? ?-vars? ?-level? -- script
-
-
 proc ::run { args } {
   set opts [set ::run::default]
   set body [lindex $args end]

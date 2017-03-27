@@ -1,1 +1,1 @@
-proc callback {args} {tailcall namespace code $args}
+proc callback args {tailcall namespace code $args}
