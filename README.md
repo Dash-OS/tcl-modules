@@ -384,6 +384,7 @@ proc foo::call args { puts $args }
 
 foo call one two three
 
+# one two three
 ```
 
 </p>
