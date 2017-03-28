@@ -218,7 +218,7 @@ puts [string cat one two]
 
 ---
 
-### `run ?-scoped? ?-vars [list]? ?-level #? -- script` 
+### `run ?-scoped? ?=with [dict create]? ?-vars [list]? ?-level #? -- script` 
 
 `[run]` provides a flexible utility for running a given script within an (optionally)
 scoped environment.  It is run within "apply" so the return value of the script is the 

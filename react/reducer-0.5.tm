@@ -9,6 +9,7 @@ proc ::react::register_reducer args {
 
 proc ::react::dispatch { event args } {
   if { ! [info exists ::react::reducers] } { return 0 }
+  if { $args eq {} } { lappend args {} }
   if { [info exists ::react::reducer_callbacks] && [dict exists $::react::reducer_callbacks onEvent] } {
     {*}[dict get $::react::reducer_callbacks onEvent] $event {*}$args
     return 1

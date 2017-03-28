@@ -7,6 +7,7 @@ variable ::pubsub::subscriptions [dict create]
 proc pubsub::subscribe {id args} {
   set script [lindex $args end]
   set path   [lrange $args 0 end-1]
+  set id [string map { {:} {} { } {} } $id]
   if { [info commands subscriptions::$id] ne {} } { subscriptions::$id destroy }
   set subscription [subscription create subscriptions::$id $path $script]
   if { [dict exists $::pubsub::subscriptions {*}$path @subscriptions] } {
@@ -32,6 +33,7 @@ proc pubsub::reset {} {
 }
 
 proc pubsub::unsubscribe id {
+  set id [string map { {:} {} { } {} } $id]
   if { [info commands subscriptions::$id] ne {} } { subscriptions::$id destroy }
 }
 
@@ -55,6 +57,7 @@ proc pubsub::cleanup path {
 }
 
 proc pubsub::trigger {id args} {
+  set id [string map { {::} {_} { } {_} } $id]
   if { [info commands subscriptions::$id] ne {} } { 
     return [ subscriptions::$id execute {*}$args]
   }
@@ -73,5 +76,5 @@ proc pubsub::trigger {id args} {
     } else { dict unset ::pubsub::subscriptions {*}$PATH @subscriptions }
     pubsub cleanup $PATH
   }
-  method execute args { uplevel #0 $SCRIPT $args }
+  method execute args { catch { uplevel #0 $SCRIPT $args } }
 }

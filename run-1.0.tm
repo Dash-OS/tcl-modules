@@ -62,6 +62,7 @@ proc ::run { args } {
 }
 
 proc ::run::scoped { opts {body {}} } {
+  set inject [list]
   if { $body eq {} } { set body $opts ; set opts [set ::run::default] }
   set level [dict get $opts level]
   if { ! [string equal [string index $level 0] \#] } {
@@ -74,13 +75,19 @@ proc ::run::scoped { opts {body {}} } {
   } else {
     set vars [uplevel $level {info vars}] 
   }
+  if { [dict exists $opts with] } {
+    lappend inject [list set __v [dict get $opts with]] {
+      dict with __v {}
+      unset -nocomplain __v
+    }
+  }
   if { [dict exists $opts upvar] && [dict get $opts upvar] } {
     set cmd [format { catch { upvar %s ${___v} ${___v} } } $level]
   } else {
     set cmd [format { catch { set [set ___v] [uplevel %s set ${___v}] } } $level ]
   }
   tailcall ::run::runner [dict create __v $vars] [format {
-    foreach ___v ${__v}[unset __v] { %s }; catch { unset ___v } ; %s
-  } $cmd $body]
+    foreach ___v ${__v}[unset __v] { %s }; catch { unset ___v } ; %s ; %s
+  } $cmd [join $inject \;] $body]
 }
 
