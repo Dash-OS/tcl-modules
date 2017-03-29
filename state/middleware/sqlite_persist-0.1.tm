@@ -17,21 +17,16 @@
 # changed {ip state} entryID 2 keys {ip state} refs 
 # {entry ::Import::Modules::state::Containers::DeviceStream::Entries::2}
 package require sqlite3
-import class@ from "class@"
-
-import { 
-	{ provideMiddleware }
-} from "state"
-
-import mergeSnapshots from "state-merge-snapshot"
+package require oo::module
+package require state::helpers::merge_snapshot
 
 # Build the subscriptions middleware so that we can attach it to the state
 # as needed.
-provideMiddleware persist [namespace current]::PersistMiddleware {} {}
+::state::register::middleware sqlite_persist ::state::middleware::sqlite_persist {} {}
 
 namespace eval db {}
 
-class@ create PersistMiddleware {
+module create ::state::middleware::sqlite_persist {
 	
 	# Our static configuration prop (class variable)
 	::variable config {}
@@ -406,6 +401,3 @@ PersistMiddleware::static configure { args } {
   
   set [namespace current]::config $config
 }
-
-
-export default PersistMiddleware

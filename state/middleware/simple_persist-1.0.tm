@@ -16,19 +16,13 @@
 # {ip {value 192.168.1.10 prev 192.168.1.3} state {value 1 prev 0}} 
 # changed {ip state} entryID 2 keys {ip state} refs 
 # {entry ::Import::Modules::state::Containers::DeviceStream::Entries::2}
-import class@ from "class@"
-
-import { 
-	{ provideMiddleware }
-} from "state"
-
-import mergeSnapshots from "state-merge-snapshot"
+namespace eval ::state::configure {}
 
 # Build the subscriptions middleware so that we can attach it to the state
 # as needed.
-provideMiddleware persist [namespace current]::PersistMiddleware {} {}
+::state::register::middleware simple_persist ::state::middleware::simple_persist {} {}
 
-class@ create PersistMiddleware {
+module create ::state::middleware::simple_persist {
 	
 	# Our static configuration prop (class variable)
 	::variable config {}
@@ -40,16 +34,15 @@ class@ create PersistMiddleware {
 	  set CONTAINER $container
 	  set NAME      [namespace tail $container]
 	  set config    [prop config]
-	  
+
 	  if { $config eq {} } {
-	    puts "\n You must configure the Persist Middleware before using it"
-	    puts "import ConfigurePersist from \"state-persist-middleware\""
-	    puts "ConfigurePersist static configure \$config"
 	    throw error "state-persist-middleware requires configuration"
 	  }
 	 
-	  if { [dict exists $stateConfig persist] } {
-	    set CONFIG [dict get $stateConfig persist] 
+	  if { [dict exists $stateConfig simple_persist]  } {
+	    set CONFIG [dict get $stateConfig simple_persist]
+	  } elseif { [dict exists $stateConfig persist] } {
+	  	set CONFIG [dict get $stateConfig persist] 
 	  } else { set CONFIG {} }
 	  
     if { ! [dict exists $CONFIG path] } {
@@ -78,10 +71,10 @@ class@ create PersistMiddleware {
 	  }
 	  
 	  if { ! [dict exists $CONFIG async] } {
-	    if { [dict exists $stateConfig async] } {
-	      dict set CONFIG async [dict get $stateConfig async]
-	    } elseif { [dict exists $config async] } {
+	    if { [dict exists $config async] } {
 	      dict set CONFIG async [dict get $config async] 
+	    } elseif { [dict exists $stateConfig async] } {
+	      dict set CONFIG async [dict get $stateConfig async]
 	    } else {
 	      dict set CONFIG async 1
 	    }
@@ -123,10 +116,19 @@ class@ create PersistMiddleware {
 	  	set path [dict get $stateConfig persistPath]
 	  } else { set path {} }
 	  
-	  lassign [ static rehydrate $NAME $CONFIG $schema ] state reset_required
+	  lassign [ rehydrate $NAME $CONFIG $schema ] state reset_required
 	  
 	  if { $state ne {} } {
-	    $CONTAINER sets $state  
+	  	# For each entry we need to try to set the state.  If an error occurs then
+	  	# we need to remove the given value from the persistence
+	  	set remove_entries [list]
+	  	foreach entry $state {
+	  		try {
+	  			$CONTAINER set $entry
+	  		} trap MISSING_REQUIRED {} {
+	  			set reset_required 1
+	  		}
+	  	}
 	  }
 	  
 	  if { $reset_required } { 
@@ -140,12 +142,13 @@ class@ create PersistMiddleware {
 		# This means that we need to refresh the persistence file from our current
 		# state from scratch.  This should rarely occur - only if we switched from
 		# using "bulk" to not using bulk at some point during an update.
+		Remove $NAME $CONFIG
 		if { [dict get $CONFIG bulk] } {
-			static SaveSnapshot $NAME $CONFIG bulk
+			SaveSnapshot $NAME $CONFIG bulk
 		} else {
-			set stateKeys [dict keys [state get $NAME]]
+			set stateKeys [state entries $NAME]
 			foreach keyValue $stateKeys {
-				static SaveSnapshot $NAME $CONFIG $keyValue
+				SaveSnapshot $NAME $CONFIG $keyValue
 			}
 		}
 		
@@ -184,30 +187,42 @@ class@ create PersistMiddleware {
 		} else {
 			# When sychronous snapshotting is enabled, every change to the state
 			# will result in the snapshot being merged into the database synchronously.
-			static SaveSnapshot $NAME $CONFIG $keyValue
+			SaveSnapshot $NAME $CONFIG $keyValue
 		}
 	}
 	
 	method ResolveAsyncSnapshot { keyValue } {
 		dict unset QUEUE $keyValue
-		static SaveSnapshot $NAME $CONFIG $keyValue
+		SaveSnapshot $NAME $CONFIG $keyValue
 	}
 	
 }
 
 
-PersistMiddleware::static SaveSnapshot { name config keyValue {new 1} } {
-	set path [dict get $config path]
-  if { [dict exists $config file_name] } {
+proc ::state::middleware::simple_persist::ResolveFilename { name config {keyValue {}}} {
+	if { [dict exists $config file_name] } {
     set filename [dict get $config file_name]
   } else {
     set filename [dict get $config prefix]
     if { $filename ne {} } { append filename - }
     append filename $name
   }
-  if { ! [dict get $config bulk] && $keyValue ne "@@S" } {
+  if { $keyValue ne {} && ! [dict get $config bulk] && $keyValue ne "@@S" } {
   	append filename - $keyValue
   }
+  return $filename
+}
+
+proc ::state::middleware::simple_persist::Remove { name config {keyValue {}} } {
+	set path     [dict get $config path]
+	set filename [ResolveFilename $name $config $keyValue]
+	set files    [glob -nocomplain -directory $path ${filename}*]
+	if { [llength $files] } { file delete -force -- {*}$files	}
+}
+
+proc ::state::middleware::simple_persist::SaveSnapshot { name config keyValue {new 1} } {
+	set path [dict get $config path]
+  set filename [ResolveFilename $name $config $keyValue]
   if { [dict get $config bulk] } {
     set value [dict values [state get $name]]
   } else {
@@ -224,38 +239,28 @@ PersistMiddleware::static SaveSnapshot { name config keyValue {new 1} } {
   ::fileutil::writeFile -translation binary [file join $path $filename] $value
 }
 
-PersistMiddleware::static eval { name args } {
-  puts "Eval $name $args"
-	#tailcall sqlite3 [namespace parent]::db::$name eval {*}$args	
-}
 
 # Called to rehydrate the state using the database value (if it exists). We select
 # the entire table (dedicated to the state that calls it) and generate a valid "setter"
 # which will set all the entries that have been saved.
-PersistMiddleware::static rehydrate { name config schema } {
+proc ::state::middleware::simple_persist::rehydrate { name config schema } {
   # Overrides all other values - we will always use the file_path
   set path [dict get $config path]
   set reset_required 0
   set was_bulk 0 ; set was_notbulk 0
-  if { [dict exists $config file_name] } {
-    set filename [dict get $config file_name]
-  } else {
-    set filename [dict get $config prefix]
-    if { $filename ne {} } { append filename - }
-    append filename $name
-  }
+  set filename [ResolveFilename $name $config]
   set files [glob -nocomplain -directory $path ${filename}*]
   if { [dict get $config bulk] } {
   	# We want to do a sanity check to determine if we matched more than a 
   	# single file.  If we did, we will reset the state by removing the files
-  	if { [llength $files] > 1 } {
+  	if { [llength $files] > 1 || ! [file isfile [file join [file dirname [lindex $files 0]] $filename]] } {
   		set reset_required 1
   		set was_notbulk 1
   	}
   } else {
   	if { [llength $files] == 1 && [dict get $schema key] ne {} } {
   		# This may be ok, but we want to double check if we are not using bulk.
-  		if { [file isfile $files] } {
+  		if { [file isfile [file join [file dirname [lindex $files 0]] $filename]] } {
   			# This means that we likely switched from "bulk" to not using bulk.	
   			set reset_required 1
   			set was_bulk 1
@@ -267,7 +272,16 @@ PersistMiddleware::static rehydrate { name config schema } {
 	  set data [::fileutil::cat -translation binary $file]
 	  if { ! [string is ascii -strict $data] } {
 	    # Our data appears to be encrypted
+	    if { [dict exists $config encrypt] && ! [dict get $config encrypt] } {
+	    	# We are encrypted but the state config changed to non-encrypted.
+	    	# We need to save the unecrypted value to the file.
+	  		set reset_required 1
+	    }
 	    set data [::decrypt $data]
+	  } elseif { [dict exists $config encrypt] && [dict get $config encrypt] } {
+	  	# We are now encrypted but were not before, we need to encrypt and save
+	  	# it.
+			set reset_required 1
 	  }
 	  if { ! $was_notbulk && ( [dict get $config bulk] || $was_bulk ) } {
 			lappend contents {*}$data	
@@ -288,10 +302,13 @@ PersistMiddleware::static rehydrate { name config schema } {
 
 # Provides the global persist configuration information onto the PersistMiddleware
 # instances using the "prop" command.
-PersistMiddleware::static configure { args } {
-	variable config
+proc ::state::configure::simple_persist { args } {
+	namespace upvar ::state::middleware::simple_persist config config
   dict with args {}
   
+  if { ! [info exists -path] } {
+		throw error "simple_persist requires the -path argument"	
+  }
   dict set config path [file normalize [file nativename [set -path]]]
   
   # Prefix value will prefix the saved state files with the given value
@@ -318,5 +335,3 @@ PersistMiddleware::static configure { args } {
   
   set config $config
 }
-
-export default PersistMiddleware

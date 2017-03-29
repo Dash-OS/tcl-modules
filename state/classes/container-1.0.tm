@@ -1,5 +1,5 @@
 ::oo::define ::state::Container {
-  variable KEY READY ENTRIES REQUIRED CONFIG SCHEMA SUBSCRIBED MIDDLEWARES ITEM_REFS
+  variable KEY READY ENTRIES REQUIRED CONFIG SCHEMA SUBSCRIBED MIDDLEWARES ITEMS
 }
 
 ::oo::define ::state::Container constructor schema {
@@ -39,7 +39,8 @@
 }
 
 ::oo::define ::state::Container method CreateItem { itemID params } {
-  lappend ITEM_REFS [ ::state::Item create items::$itemID [self] $params ]
+  ::state::Item create items::$itemID [self] $params
+  lappend ITEMS $itemID
 }
 
 ::oo::define ::state::Container method CreateEntry { entryID } {
@@ -53,6 +54,14 @@
     throw error "Property $what does not exist in [self]"
   }
   return [set $what]
+}
+
+::oo::define ::state::Container method entries {} {
+  return $ENTRIES
+}
+
+::oo::define ::state::Container method items {} {
+  return $ITEMS
 }
 
 ::oo::define ::state::Container method remove_entries { entryIDs } {
@@ -97,7 +106,7 @@
       
       if { [dict exists $MiddlewareMixins item] } {
         set mixin [dict get $MiddlewareMixins item]
-        foreach ref $ITEM_REFS[set ITEM_REFS ""] { ::oo::objdefine $ref mixin -append $mixin } 
+        foreach itemID $ITEMS { ::oo::objdefine items::$itemID mixin -append $mixin } 
       }
       
       if { "onRegister" in $methods } {

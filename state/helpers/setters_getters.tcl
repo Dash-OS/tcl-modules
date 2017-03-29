@@ -45,9 +45,21 @@
 			if { [info exists snapshot] } {
 				dict lappend snapshot created $KEY
 			}
-			my CreateEntry $stateKeyValue 
+		  my CreateEntry $stateKeyValue 
 		}
-		entries::$stateKeyValue set $data
+		try {
+		  entries::$stateKeyValue set $data
+		} trap MISSING_REQUIRED {result} {
+		  # If we receive this error then we need to remove the entry entirely.
+		  # Once we have done that we will rethrow the error to the caller.
+		  entries::$stateKeyValue destroy
+		  throw MISSING_REQUIRED $result
+		} trap ENTRY_INVALID {result} {
+		  # This will occur when an entry fails due to a validation error and it
+		  # can not revert to its previous values
+		  entries::$stateKeyValue destroy
+		  throw ENTRY_INVALID $result
+		}
 		if { [info exists snapshot] } {
 			# If we have a snapshot we know that we need to evaluate middlewares.
 			if { ( [dict exists $CONFIG stream] && [dict get $CONFIG stream] )
@@ -79,15 +91,24 @@
 		set required [{*}$CONTAINER prop REQUIRED]
 		set keys     [dict keys $data]
 		if { ! [lhas $required $keys] } {
-			throw error "Required items are missing while setting $ENTRY_ID - $keys vs $required"
+			throw MISSING_REQUIRED "State [namespace tail $CONTAINER] | Error | Required items are missing while setting entry $ENTRY_ID - received keys: \"$keys\" and require \"$required\""
 		}
 	}
 	# Iterate through the received snapshot and set each of the items held within.
 	dict for { k v } $data {
-		if { ! [ [my item $k] set $ENTRY_ID $v ] } {
-			if { $k in $ITEMS } { set ITEMS [lsearch -all -inline -not -exact $ITEMS $k] }
-		} else {
-			if { $k ni $ITEMS } { lappend ITEMS $k }
+	  try {
+  	  set exists [ [my item $k] set $ENTRY_ID $v ]
+  		if { ! $exists } {
+  			if { $k in $ITEMS } { set ITEMS [lsearch -all -inline -not -exact $ITEMS $k] }
+  		} elseif { $k ni $ITEMS } { lappend ITEMS $k }
+		} trap VALIDATION_ERROR { result } {
+		  # If a validation occurs we need to revert any values we have already set
+		  foreach rkey [dict keys $data] {
+		    if { $rkey eq $k } { break }
+		    if { ! [ [my item $rkey] revert $ENTRY_ID ] } {
+		      my remove $rkey
+		    }
+		  }
 		}
 	}
 	if { [info exists snapshot] } {
@@ -109,12 +130,13 @@
 	} elseif { $value ne {} } { 
 		set prev {} 
 	} else { return 0 }
+	
 	if { $value eq {} } {
 		# Setting an item to a value of {} will remove it from the state.
 		# an empty value shall be treated as "null" for our purposes and may 
 		# be further interpreted by the higher-order-procedures.
 		# -- Still have to determine if this is the appropriate logic to use.
-		if { $REQUIRED && ! $force } { throw error "$key is a required item but you tried to remove it in [self]" }
+		if { $REQUIRED && ! $force } { throw REMOVE_REQUIRED_ITEM "State [namespace tail $CONTAINER | Error | $ITEM_ID is a required item but you tried to remove it in entry $key" }
 		if { [dict exists $VALUES $key] } { dict unset VALUES $key }
 		if { [dict exists $PREV $key] }   { dict unset PREV   $key }
 		if { [info exists snapshot] } {
@@ -126,7 +148,7 @@
 		}
 		return 0
 	} elseif { ! [ my validate value ] } {
-		throw error "$key $value does not match the schema: $TYPE"
+		throw VALIDATION_ERROR "State [namespace tail $CONTAINER] | Error | Entry $key | $value does not match item ${ITEM_ID}'s schema: $TYPE"
   } else {
   	if { [info exists snapshot] } { 
   		if { $prev eq {} } { 
@@ -141,6 +163,30 @@
 		}
   	dict set VALUES $key $value
 		dict set PREV   $key $prev
+  }
+  return 1
+}
+
+::oo::define ::state::Item method revert entry_id {
+  if { [dict exists $VALUES $entry_id] } {
+    set value [dict get $VALUES $entry_id] 
+  } else { set value {} }
+  if { [dict exists $PREV $entry_id] } {
+    set prev [dict get $PREV $entry_id] 
+  } else { set prev {} }
+  if { $prev eq {} } {
+    if { $REQUIRED } {
+      throw ENTRY_INVALID "State [namespace tail $CONTAINER | Error | $entry_id item $ITEM_ID is required but now invalid, the entry will be removed"
+    } else {
+      # Remove the item all together
+      return 0
+    }
+  } else {
+    # We simply set the value to the previous value while keeping previous
+    # the same.  This is because we don't want multiple invalidation attempts
+    # to end up removing a value all together and also don't want them to end up
+    # causing issues with subscriptions which depend on changing values.
+    dict set VALUES $entry_id $prev
   }
   return 1
 }
@@ -287,7 +333,7 @@
     return
   } else {
     foreach itemID $items {
-  		${ITEMS_PATH}::$itemID set $ENTRY_ID {}
+  		[my item $itemID] set $ENTRY_ID {}
   		set ITEMS [lsearch -all -inline -not -exact $ITEMS[set ITEMS ""] $itemID]
   	}
   }

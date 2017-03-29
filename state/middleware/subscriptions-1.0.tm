@@ -82,7 +82,14 @@ module create ::state::middleware::subscriptions {
 	
 	constructor { container stateConfig middlewareConfig } {
 		set CONTAINER $container
-		set CONFIG    $stateConfig
+		if { [dict exists $stateConfig subscriptions] } {
+			set CONFIG [dict get $stateConfig subscriptions]
+			if { ! [dict exists $CONFIG bulk] && [dict exists $stateConfig bulk] } {
+				dict set CONFIG bulk [dict get $stateConfig bulk]
+			}
+		} else {
+			set CONFIG $stateConfig
+		}
 		set SUBSCRIPTIONS [dict create]
 		set SUBSCRIPTION_MAP [dict create]
 		set EVALUATIONS   [dict create]
@@ -103,7 +110,13 @@ module create ::state::middleware::subscriptions {
 				: "sync"
 			}]
 			dict unset subscription subscription config async
+		} elseif { [dict exists $CONFIG async] } {
+			set type [expr { [dict get $CONFIG async] 
+				? "async"
+				: "sync"
+			}]
 		} else { set type "async" }
+		
 		if { [dict exists $subscription subscription config state] && [dict get $subscription subscription config state] } {
 			# Stateful Subscription requested
 			dict set STATE $subscriptionID [dict create]
@@ -511,14 +524,14 @@ module create ::state::middleware::subscriptions {
 # are on a state, for the life of the evaluation of those 200 subscriptions we will only need 
 # to query the values a maximum of one time.
 # ::tcm::module::state-subscription-middleware::
-proc ::state::middleware::subscriptions::rule_evaluator { snapshot } {
+proc ::state::middleware::subscriptions::rule_evaluator snapshot {
 	set STATE {}
 	dict with snapshot {}
 	if { [info exists keyValue] } { set entry_id $keyValue }
 	set result 0
 	set entry_removed 0
-	yield [info coroutine]
 	set value {} ; set prev {}
+	yield [info coroutine]
 	while 1 {
 		try {
 			set rule [yield [list $result $items]]

@@ -110,6 +110,10 @@
 	return $updateDict
 }
 
+::oo::define ::state::API method configure { what args } {
+	tailcall ::state::configure::$what {*}$args
+}
+
 # ::oo::define ::state::API method keys {localID} {
 # 	set ref [state ref $localID]
 # 	if {[state prop $localID singleton $ref]} {
@@ -165,6 +169,10 @@
 		? [string map [list [namespace parent]::Containers:: {}] $containers] \
 		: $containers
 	}]
+}
+
+::oo::define ::state::API method entries { localID } {
+	tailcall [my ref $localID] entries
 }
 
 ::oo::define ::state::API method json {localID args} {

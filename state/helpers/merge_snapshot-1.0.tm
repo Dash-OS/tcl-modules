@@ -17,7 +17,8 @@
 # ip {value 192.168.83.83 prev 192.168.83.83} yay {value 1 prev 1}} 
 # refs {entry ::tcm::module::state::Containers::MyState2::Entries::83}
 #
-proc merge { prev new } {
+proc ::state::merge_snapshot { prev new } {
+	puts merge
   dict with prev {}
 	set items [dict merge $items [dict get $new items]]
 	foreach e [dict get $new removed] { 
@@ -85,5 +86,3 @@ proc merge { prev new } {
 #   	]]
 # 	}
 # }
-
-export default merge
