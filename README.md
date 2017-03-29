@@ -20,6 +20,16 @@ Feel free to use any of these however you wish.
 Would love to collect any other "awesome" and useful Tcl procs that you find yourself 
 using and others may find useful.  
 
+## Installation
+
+You can use these packages by simply downloading them and including them within your 
+tm module path (`[::tcl::tm::path list]`).  Note that some of these packages may depend 
+on others and/or having the directory structure intact.
+
+Once you have done this you should be able to `package require` them.
+
+> **Tip:** You can add to the tcl module directories list by calling `[::tcl::tm::path add $dir]`
+
 ## Package Summaries
 
 I will try to provide a basic idea of some of the modules as time goes on.
