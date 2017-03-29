@@ -29,16 +29,18 @@ proc ::oo::metaclass::unknown {self what args} {
   }
 }
 
-
 proc ::react::render args {
   set args [ lassign $args component ]
   if { [info commands $component] eq {} } {
     set component [uplevel 1 [list namespace which $component]]
     if { [info commands $component] eq {} } {
-      throw error "$component is not a known component"
+      throw error "[lindex $args 0] is not a known component"
     }
   }
-  set root [ $component create ::react::root[incr ::react::i] [dict create order 0 root 1] {*}$args ]
+  if { [info commands ::react::root] ne {} } {
+    set root_name ::react::root[incr ::react::i]
+  } else { set root_name ::react::root }
+  set root [ $component create $root_name [dict create order 0 root 1] {*}$args ]
 }
 
 ::oo::class create ::react::mixin {
@@ -57,8 +59,17 @@ proc ::react::render args {
     my componentDidMount
   }
   
+  destructor {
+    my @@UnmountChildren @@all
+    if { [self next] ne {} } { next }
+    namespace delete [namespace current]
+    if { [info commands [namespace qualifiers [self]]::*] eq {} } {
+      namespace delete [namespace qualifiers [self]]
+    }
+  }
+  
   method static {cmd args} {
-    tailcall [namespace parent]::my $cmd {*}$args
+    tailcall [info object class [self]]::my $cmd {*}$args
   }
   
   method @namespace {} { return [namespace current] }
@@ -84,8 +95,9 @@ proc ::react::render args {
       if { $C eq {} || [info commands $C] eq {} } {
         throw error "$C is not a known Component"
       } else {
+        set self [self]
         dict lappend @@COMPONENT render_queue [join [list \
-          [subst -nocommands { set _component [$C create [self]::c::$key {o {$child}} {$args}] }] \
+          [subst -nocommands { set _component [$C create ${self}::c::$key {o {$child}} {$args}] }] \
           [format { dict set @@COMPONENT c {%s} ${_component} } $key ] \
         ] \;]
       }
@@ -144,6 +156,13 @@ proc ::react::render args {
   }
   
   method @@UnmountChildren { children } {
+    if { $children eq "@@all" } {
+      set children {}
+      set component [set @@COMPONENT]
+      if { [dict exists $component c] } {
+        set children [dict get $component c]
+      }
+    }
     dict for { key child_num } $children {
       [my @@Child $key]::my componentWillUnmount
       dict unset @@COMPONENT c $key

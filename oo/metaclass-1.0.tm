@@ -12,7 +12,7 @@ namespace eval ::oo::metaclass {
   
   variable Build_Constructor_Object {
     namespace unknown [list ::oo::metaclass::unknown [info object class [self]]]
-    namespace path [list [namespace parent [namespace parent]] [namespace parent] {*}[namespace path]]
+    namespace path [list [info object class [info object class [self]]] [info object class [self]] [namespace parent [namespace parent]] {*}[namespace path]]
   }
   
   proc unknown {self what args} {
@@ -68,11 +68,17 @@ namespace eval ::oo::metaclass {
   
   method create {name args} {
     if { [info object class [self]] eq "::oo::metaclass" } {
-      tailcall my createWithNamespace $name [namespace current]::${name}[incr ::oo::metaclass::i] {*}$args
+      if { [info commands [namespace current]::${name}::my] ne {} } {
+        set id ${name}[incr ::oo::metaclass::i]
+      } else { set id $name }
+      tailcall my createWithNamespace $name [uplevel 1 {namespace current}]::$id {*}$args
     } else {
+      if { [info commands [namespace current]::${name}::my] ne {} } {
+        set id [namespace tail ${name}][incr ::oo::metaclass::i]
+      } else { set id [namespace tail $name] }
       tailcall my createWithNamespace \
         $name \
-        [namespace current]::[namespace tail [self]][incr ::oo::metaclass::i] {*}$args
+        [namespace current]::$id {*}$args
     }
 	}
   

@@ -82,6 +82,12 @@ Component create ::react::reducer {
     react register_reducer {}
   }
   
+  method creator {} {
+    return [list namespace inscope [ \
+      [namespace parent [namespace qualifiers [self]]] @namespace] \
+    my]
+  }
+  
   # We will receive events from our dispatcher and react to them by appropriately
   # setting the state based on the values we receive.  Those can then be sent into 
   # our UI as-needed based on the context.
@@ -109,10 +115,6 @@ Component create ::react::reducer {
     }
   }
   
-  method store_update {} {
-    if { [dict exists $PROPS onUpdate] } {
-      {*}[dict get $PROPS onUpdate] 
-    }
-  }
+  method store_update {} { {*}[my creator] forceUpdate }
   
 }

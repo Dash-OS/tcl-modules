@@ -75,7 +75,7 @@ proc ::run::scoped { opts {body {}} } {
   } else {
     set vars [uplevel $level {info vars}] 
   }
-  if { [dict exists $opts with] } {
+  if { [dict exists $opts with] && [dict get $opts with] ne {} } {
     lappend inject [list set __v [dict get $opts with]] {
       dict with __v {}
       unset -nocomplain __v
