@@ -400,7 +400,7 @@ proc ::react::render args {
   # If this is not defined, then each component would be rendered within the ns
   # that creates it which makes it harder to conduct introspection and 
   # cleanup.
-  scope ::Components
+  scope ::react::components
   
   constructor data {
     next [join [list $data {
