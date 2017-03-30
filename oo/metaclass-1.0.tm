@@ -68,7 +68,12 @@ proc ::oo::metaclass::define { metaclass what args } {
   constructor {{script {}}} {
     namespace unknown [list ::oo::metaclass::unknown [self]]
     if { [info object class [self]] ne "::oo::metaclass" } {
-      namespace path [list [namespace current] [info object class [self]] {*}[namespace path] [uplevel 1 { namespace current }]]
+      namespace path [list \
+        [namespace current] ]
+        [info object class [self]] \
+        {*}[namespace path] \
+        [uplevel 1 { namespace current }]
+      ]
       # We need a constructor defined, if one is defined by the user then
       # it will be overwritten.
       try {constructor args {}}
@@ -96,7 +101,7 @@ proc ::oo::metaclass::define { metaclass what args } {
   }
   
   self method namespace {} { namespace current }
-  method namespace {} { namespace current }
+  method namespace      {} { namespace current }
   
   method scope ns {
     ::variable scope $ns
@@ -126,7 +131,7 @@ proc ::oo::metaclass::define { metaclass what args } {
         $name \
         $path {*}$args
     }
-	}
+  }
   
   method new {args} {
     set i [ incr ::oo::metaclass::i ]
