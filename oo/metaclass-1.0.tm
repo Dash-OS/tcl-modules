@@ -12,7 +12,8 @@ namespace eval ::oo::metaclass {
 }
 # metaclass needs to replace the variable command as it is lost during creation
 proc ::oo::metaclass::meta_variable args { 
-  try {
+  try { 
+    puts metavar
     set self [uplevel 1 {self}]
     foreach var $args { ::oo::define $self variable $var } 
   } on error {result} {
@@ -31,6 +32,7 @@ proc ::oo::metaclass::construct {} { uplevel 1 {
 }}
 
 proc ::oo::metaclass::unknown {self what args} {
+  #puts "unknown $self | $what | $args"
   if { $what in [info object methods $self -all] } {
     tailcall $self $what {*}$args
   } elseif { [list ::oo::define::$what] in [info commands ::oo::define::*] } {
@@ -69,7 +71,7 @@ proc ::oo::metaclass::define { metaclass what args } {
     namespace unknown [list ::oo::metaclass::unknown [self]]
     if { [info object class [self]] ne "::oo::metaclass" } {
       namespace path [list \
-        [namespace current] ]
+        [namespace current] \
         [info object class [self]] \
         {*}[namespace path] \
         [uplevel 1 { namespace current }]
