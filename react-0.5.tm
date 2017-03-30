@@ -69,7 +69,7 @@ proc ::react::render args {
   }
   
   method static {cmd args} {
-    tailcall [info object class [self]]::my $cmd {*}$args
+    tailcall [info object class [self]] $cmd {*}$args
   }
   
   method @namespace {} { return [namespace current] }
@@ -393,6 +393,15 @@ proc ::react::render args {
 # capabilities. 
 ::oo::metaclass create Component {
 
+  # We want all children to use ::Components as their base namespace.  Their
+  # command resolution still occurs where created and they have access to resolve
+  # commands defined within the namespace it is created within.  
+  #
+  # If this is not defined, then each component would be rendered within the ns
+  # that creates it which makes it harder to conduct introspection and 
+  # cleanup.
+  scope ::Components
+  
   constructor data {
     next [join [list $data {
       mixin -append ::react::mixin

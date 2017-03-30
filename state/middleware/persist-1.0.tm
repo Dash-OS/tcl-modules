@@ -20,9 +20,9 @@ namespace eval ::state::configure {}
 
 # Build the subscriptions middleware so that we can attach it to the state
 # as needed.
-::state::register::middleware persist ::state::middleware::simple_persist {} {}
+::state::register::middleware persist ::state::middleware::persist {} {}
 
-module create ::state::middleware::simple_persist {
+module create ::state::middleware::persist {
 	
 	# Our static configuration prop (class variable)
 	::variable config {}
@@ -39,8 +39,8 @@ module create ::state::middleware::simple_persist {
 	    throw error "state-persist-middleware requires configuration"
 	  }
 	 
-	  if { [dict exists $stateConfig simple_persist]  } {
-	    set CONFIG [dict get $stateConfig simple_persist]
+	  if { [dict exists $stateConfig persist]  } {
+	    set CONFIG [dict get $stateConfig persist]
 	  } elseif { [dict exists $stateConfig persist] } {
 	  	set CONFIG [dict get $stateConfig persist] 
 	  } else { set CONFIG {} }
@@ -199,7 +199,7 @@ module create ::state::middleware::simple_persist {
 }
 
 
-proc ::state::middleware::simple_persist::ResolveFilename { name config {keyValue {}}} {
+proc ::state::middleware::persist::ResolveFilename { name config {keyValue {}}} {
 	if { [dict exists $config file_name] } {
     set filename [dict get $config file_name]
   } else {
@@ -213,14 +213,14 @@ proc ::state::middleware::simple_persist::ResolveFilename { name config {keyValu
   return $filename
 }
 
-proc ::state::middleware::simple_persist::Remove { name config {keyValue {}} } {
+proc ::state::middleware::persist::Remove { name config {keyValue {}} } {
 	set path     [dict get $config path]
 	set filename [ResolveFilename $name $config $keyValue]
 	set files    [glob -nocomplain -directory $path ${filename}*]
 	if { [llength $files] } { file delete -force -- {*}$files	}
 }
 
-proc ::state::middleware::simple_persist::SaveSnapshot { name config keyValue {new 1} } {
+proc ::state::middleware::persist::SaveSnapshot { name config keyValue {new 1} } {
 	set path [dict get $config path]
   set filename [ResolveFilename $name $config $keyValue]
   if { [dict get $config bulk] } {
@@ -243,7 +243,7 @@ proc ::state::middleware::simple_persist::SaveSnapshot { name config keyValue {n
 # Called to rehydrate the state using the database value (if it exists). We select
 # the entire table (dedicated to the state that calls it) and generate a valid "setter"
 # which will set all the entries that have been saved.
-proc ::state::middleware::simple_persist::rehydrate { name config schema } {
+proc ::state::middleware::persist::rehydrate { name config schema } {
   # Overrides all other values - we will always use the file_path
   set path [dict get $config path]
   set reset_required 0
@@ -302,12 +302,12 @@ proc ::state::middleware::simple_persist::rehydrate { name config schema } {
 
 # Provides the global persist configuration information onto the PersistMiddleware
 # instances using the "prop" command.
-proc ::state::configure::simple_persist { args } {
-	namespace upvar ::state::middleware::simple_persist config config
+proc ::state::configure::persist { args } {
+	namespace upvar ::state::middleware::persist config config
   dict with args {}
   
   if { ! [info exists -path] } {
-		throw error "simple_persist requires the -path argument"	
+		throw error "persist requires the -path argument"	
   }
   dict set config path [file normalize [file nativename [set -path]]]
   

@@ -1,3 +1,4 @@
+package require alias
 
 namespace eval ::oo::metaclass {
   
@@ -5,24 +6,54 @@ namespace eval ::oo::metaclass {
   
   variable Build_Prefix_Meta {
     superclass ::oo::metaclass
-    proc variable {args} {
-      foreach var $args { ::oo::define [uplevel 1 {self}] variable $var }
+    alias variable ::oo::metaclass::meta_variable
+  }
+  
+}
+# metaclass needs to replace the variable command as it is lost during creation
+proc ::oo::metaclass::meta_variable args { 
+  try {
+    set self [uplevel 1 {self}]
+    foreach var $args { ::oo::define $self variable $var } 
+  } on error {result} {
+    tailcall ::variable {*}$args
+  }
+}
+
+proc ::oo::metaclass::construct {} { uplevel 1 {
+  namespace unknown [list ::oo::metaclass::unknown [info object class [self]]]
+  namespace path [list \
+    [[info object class [self]] namespace] \
+    {*}[namespace qualifiers [info object class [self]]] \
+    [[info object class [info object class [self]]] namespace] \
+    {*}[namespace path]
+  ]
+}}
+
+proc ::oo::metaclass::unknown {self what args} {
+  if { $what in [info object methods $self -all] } {
+    tailcall $self $what {*}$args
+  } elseif { [list ::oo::define::$what] in [info commands ::oo::define::*] } {
+    tailcall ::oo::define $self $what {*}$args
+  } else { tailcall ::unknown $what {*}$args }
+}
+
+proc ::oo::metaclass::define { metaclass what args } {
+  set metaclass [uplevel 1 [list namespace which $metaclass]]
+  if { "::oo::metaclass" ni [info class superclasses [info object class $metaclass]] } {
+    throw error "$metaclass is not a metaclass"
+  }
+  switch -- $what {
+    constructor {
+      lassign $args argnames body
+      tailcall ::oo::define $metaclass constructor $argnames [format {
+        %s ; %s } ::oo::metaclass::construct $body
+      ]
+    }
+    default {
+      tailcall ::oo::define $metaclass $what {*}$args
     }
   }
-  
-  variable Build_Constructor_Object {
-    namespace unknown [list ::oo::metaclass::unknown [info object class [self]]]
-    namespace path [list [info object class [info object class [self]]] [info object class [self]] [namespace parent [namespace parent]] {*}[namespace path]]
-  }
-  
-  proc unknown {self what args} {
-    if { $what in [info object methods $self -all] } {
-      tailcall $self $what {*}$args
-    } elseif { [list ::oo::define::$what] in [info commands ::oo::define::*] } {
-      tailcall ::oo::define $self $what {*}$args
-    } else { tailcall ::unknown $what {*}$args }
-  }
-  
 }
 
 ::oo::class create ::oo::metaclass {
@@ -53,7 +84,7 @@ namespace eval ::oo::metaclass {
   
   method constructor {argnames body args} {
     tailcall ::oo::define [self] constructor $argnames [format {
-      %s ; %s } $::oo::metaclass::Build_Constructor_Object $body
+      %s ; %s } ::oo::metaclass::construct $body
     ]
   }
   
@@ -64,21 +95,36 @@ namespace eval ::oo::metaclass {
     }
   }
   
+  self method namespace {} { namespace current }
   method namespace {} { namespace current }
   
+  method scope ns {
+    ::variable scope $ns
+    namespace eval $ns {}
+  }
+  
   method create {name args} {
+    ::variable scope
     if { [info object class [self]] eq "::oo::metaclass" } {
-      if { [info commands [namespace current]::${name}::my] ne {} } {
-        set id ${name}[incr ::oo::metaclass::i]
-      } else { set id $name }
-      tailcall my createWithNamespace $name [uplevel 1 {namespace current}]::$id {*}$args
+      if { [info exists scope] } {
+        set path ${scope}::$name
+      } else { 
+        set path [uplevel 1 {namespace current}]::$name }
+      if { [info commands ${path}::my] ne {} } {
+        set path ${path}[incr ::oo::metaclass::i]
+      }
+      tailcall my createWithNamespace $name $path {*}$args
     } else {
-      if { [info commands [namespace current]::${name}::my] ne {} } {
-        set id [namespace tail ${name}][incr ::oo::metaclass::i]
-      } else { set id [namespace tail $name] }
+      set id [namespace tail $name]
+      if { [info exists scope] } {
+        set path ${scope}::$id 
+      } else { set path [namespace current]::$id }
+      if { [info commands ${path}::my] ne {} } {
+        set path ${path}[incr ::oo::metaclass::i]
+      }
       tailcall my createWithNamespace \
         $name \
-        [namespace current]::$id {*}$args
+        $path {*}$args
     }
 	}
   
@@ -90,3 +136,4 @@ namespace eval ::oo::metaclass {
   }
   
 }
+
