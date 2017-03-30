@@ -2,7 +2,7 @@
   variable KEY READY ENTRIES REQUIRED CONFIG SCHEMA SUBSCRIBED MIDDLEWARES ITEMS
 }
 
-::oo::define ::state::Container constructor schema {
+::oo::metaclass::define ::state::Container constructor schema {
   #puts "::state::Container [namespace tail [namespace current]] \n Schema: $schema \n "
   set READY    0
   set KEY      [dict get $schema key]

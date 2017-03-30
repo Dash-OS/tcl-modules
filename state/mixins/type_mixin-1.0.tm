@@ -31,6 +31,7 @@
 		} elseif { ! [info exists TYPE] } {
 			throw error "You must specify the TYPE variable before validating!"
 		}
+
 		
 		return $response
 	}

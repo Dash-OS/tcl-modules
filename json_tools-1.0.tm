@@ -69,8 +69,11 @@ proc ::json::lmap      args { ::tailcall ::rl_json::json lmap      {*}$args }
 proc ::json::exists { j args } {
   ::switch -- $j {
     {} - {{}} { ::return 0 } default {
-      ::if { ! [ validate $j ] } { ::return 0 }
-      ::return [ rl exists $j {*}$args ]
+      try {
+        ::tailcall ::rl_json::json exists $j {*}$args
+      } on error {result} {
+        ::return 0
+      }
     }
   }
 }

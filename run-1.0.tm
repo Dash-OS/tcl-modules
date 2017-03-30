@@ -53,7 +53,8 @@ proc ::run { args } {
     }
     tailcall ::apply [list \
       {} \
-      [format {uplevel %s [list try {%s}]} $level $body]
+      [format {uplevel %s [list try {%s}]} $level $body] \
+      [uplevel 1 {namespace current}]
     ]
   } else {
     if { ! [info exists adict] } { set adict {} }

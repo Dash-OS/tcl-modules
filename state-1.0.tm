@@ -3,26 +3,17 @@ namespace eval ::state::containers  {}
 namespace eval ::state::mixins      {}
 namespace eval ::state::middleware  {}
 namespace eval ::state::parse       {}
-puts state
 package require list_tools
 package require oo::module
-puts ok
 package require state::registry::type
-puts query
 package require state::registry::query
-puts middle
 package require state::registry::middleware
-puts class
 ::oo::class create ::state::API
-puts module
 module create ::state::Container {}
 module create ::state::Entry {}
 module create ::state::Item {}
-puts parse
 package require state::parser::parser
-puts api
 package require state::classes::api
-puts contain
 package require state::classes::container
 package require state::classes::entry
 package require state::classes::item

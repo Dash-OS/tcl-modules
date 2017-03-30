@@ -6,20 +6,10 @@ namespace eval ::oo::metaclass {
   
   variable Build_Prefix_Meta {
     superclass ::oo::metaclass
-    alias variable ::oo::metaclass::meta_variable
   }
   
 }
-# metaclass needs to replace the variable command as it is lost during creation
-proc ::oo::metaclass::meta_variable args { 
-  try { 
-    puts metavar
-    set self [uplevel 1 {self}]
-    foreach var $args { ::oo::define $self variable $var } 
-  } on error {result} {
-    tailcall ::variable {*}$args
-  }
-}
+
 
 proc ::oo::metaclass::construct {} { uplevel 1 {
   namespace unknown [list ::oo::metaclass::unknown [info object class [self]]]
@@ -32,7 +22,6 @@ proc ::oo::metaclass::construct {} { uplevel 1 {
 }}
 
 proc ::oo::metaclass::unknown {self what args} {
-  #puts "unknown $self | $what | $args"
   if { $what in [info object methods $self -all] } {
     tailcall $self $what {*}$args
   } elseif { [list ::oo::define::$what] in [info commands ::oo::define::*] } {
@@ -43,7 +32,8 @@ proc ::oo::metaclass::unknown {self what args} {
 proc ::oo::metaclass::define { metaclass what args } {
   set metaclass [uplevel 1 [list namespace which $metaclass]]
   if { "::oo::metaclass" ni [info class superclasses [info object class $metaclass]] } {
-    throw error "$metaclass is not a metaclass"
+    # this is not a metaclass
+    tailcall ::oo::define $metaclass $what {*}$args
   }
   switch -- $what {
     constructor {
@@ -68,6 +58,10 @@ proc ::oo::metaclass::define { metaclass what args } {
   }
   
   constructor {{script {}}} {
+    # We temporarily override [variable] so that we can define the class
+    # variables.  We then remove it later so that class procs can still
+    # call variable without causing issues.
+    proc variable args { ::oo::define [uplevel 1 {self}] variable {*}$args }
     namespace unknown [list ::oo::metaclass::unknown [self]]
     if { [info object class [self]] ne "::oo::metaclass" } {
       namespace path [list \
@@ -87,6 +81,7 @@ proc ::oo::metaclass::define { metaclass what args } {
         $::oo::metaclass::Build_Prefix_Meta $script
       ][unset script]
     }
+    rename variable {}
   }
   
   method constructor {argnames body args} {
@@ -109,7 +104,7 @@ proc ::oo::metaclass::define { metaclass what args } {
     ::variable scope $ns
     namespace eval $ns {}
   }
-  
+
   method create {name args} {
     ::variable scope
     if { [info object class [self]] eq "::oo::metaclass" } {

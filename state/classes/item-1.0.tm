@@ -20,8 +20,7 @@ package require state::mixins::type_mixin
   variable REQUIRED
 }
 
-
-::oo::define ::state::Item constructor {container schema} {
+::oo::metaclass::define ::state::Item constructor {container schema} {
   set CONTAINER $container
   set ITEM_ID [dict get $schema id]
   if { [dict exists $schema type] } {

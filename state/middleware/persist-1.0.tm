@@ -24,11 +24,12 @@ namespace eval ::state::configure {}
 
 module create ::state::middleware::persist {
 	
-	# Our static configuration prop (class variable)
-	::variable config {}
+	
 	# Our instance variables
   variable CONTAINER NAME QUEUE CONFIG
-  
+  # Our static configuration prop (class variable)
+	::variable config {}
+	
 	constructor { container stateConfig middlewareConfig } {
 	
 	  set CONTAINER $container

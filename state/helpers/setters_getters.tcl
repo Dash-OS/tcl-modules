@@ -39,7 +39,7 @@
 				]
 			]
 		}
-		catch { dict unset data $KEY }
+		#catch { dict unset data $KEY }
 		# Does the entry already exist? If not, create it!
 		if { $stateKeyValue ni $ENTRIES } {
 			if { [info exists snapshot] } {
@@ -104,11 +104,17 @@
 		} trap VALIDATION_ERROR { result } {
 		  # If a validation occurs we need to revert any values we have already set
 		  foreach rkey [dict keys $data] {
-		    if { $rkey eq $k } { break }
+		    if { $rkey eq $k } { continue }
 		    if { ! [ [my item $rkey] revert $ENTRY_ID ] } {
-		      my remove $rkey
+		      if { $rkey eq $KEY } {
+		        [self] destroy
+		        return
+		      } else {
+		        my remove $rkey  
+		      }
 		    }
 		  }
+		  throw VALIDATION_ERROR $result
 		}
 	}
 	if { [info exists snapshot] } {
@@ -130,13 +136,12 @@
 	} elseif { $value ne {} } { 
 		set prev {} 
 	} else { return 0 }
-	
 	if { $value eq {} } {
 		# Setting an item to a value of {} will remove it from the state.
 		# an empty value shall be treated as "null" for our purposes and may 
 		# be further interpreted by the higher-order-procedures.
 		# -- Still have to determine if this is the appropriate logic to use.
-		if { $REQUIRED && ! $force } { throw REMOVE_REQUIRED_ITEM "State [namespace tail $CONTAINER | Error | $ITEM_ID is a required item but you tried to remove it in entry $key" }
+		if { $REQUIRED && ! $force } { throw REMOVE_REQUIRED_ITEM "State [namespace tail $CONTAINER] | Error | $ITEM_ID is a required item but you tried to remove it in entry $key" }
 		if { [dict exists $VALUES $key] } { dict unset VALUES $key }
 		if { [dict exists $PREV $key] }   { dict unset PREV   $key }
 		if { [info exists snapshot] } {
@@ -176,7 +181,7 @@
   } else { set prev {} }
   if { $prev eq {} } {
     if { $REQUIRED } {
-      throw ENTRY_INVALID "State [namespace tail $CONTAINER | Error | $entry_id item $ITEM_ID is required but now invalid, the entry will be removed"
+      throw ENTRY_INVALID "State [namespace tail $CONTAINER] | Error | $entry_id item $ITEM_ID is required but now invalid, the entry will be removed"
     } else {
       # Remove the item all together
       return 0

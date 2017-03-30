@@ -11,7 +11,7 @@
 	variable ITEMS_PATH
 }
 
-::oo::define ::state::Entry constructor { container entry_id key schema } {
+::oo::metaclass::define ::state::Entry constructor { container entry_id key schema } {
 	set CONTAINER  $container
 	set KEY        $key
 	set ENTRY_ID   $entry_id
