@@ -1,10 +1,11 @@
-# Tcl Micro Modules & Packages
+# Tcl Modules
 
 Included is a list of some of the modules that we use often within our various 
 Tcl Scripts & Applications.  Many of them are extremely small and simple (1-3 lines).  
 
-While many were created by us, some of them were taken or adapted from our various 
+While many of the "micro packages" were created by our team, some of them were taken or adapted from our various 
 encounters in the [Tcl Wiki](http://wiki.tcl.tk/), other open source communities, or the excellent Tcl IRC Chatroom. 
+
 We have tried to add credits or links to reference and provide credit whenever possible. 
 If anyone was left out and you see some of your code just let us know and I will get it 
 added as quickly as possible!
