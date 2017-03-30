@@ -1,9 +1,8 @@
 package require oo::metaclass
-namespace eval ::react {
-  namespace ensemble create
-  namespace export {[a-z]*}
-  variable i 0
-}
+package require ensembled
+namespace eval ::react ensembled
+
+variable ::react::i 0
 
 # Currently we need to redefine the metaclass unknown definition to handle our
 # component resolution.  This way we can internally handle creation and deletion
