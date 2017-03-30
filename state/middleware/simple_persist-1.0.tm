@@ -20,7 +20,7 @@ namespace eval ::state::configure {}
 
 # Build the subscriptions middleware so that we can attach it to the state
 # as needed.
-::state::register::middleware simple_persist ::state::middleware::simple_persist {} {}
+::state::register::middleware persist ::state::middleware::simple_persist {} {}
 
 module create ::state::middleware::simple_persist {
 	

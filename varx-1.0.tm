@@ -154,5 +154,3 @@ proc varx::true {varName args} {
   ::upvar 1 $varName var
   ::tailcall ::if [::expr {[::info exists var] && [::string is true -strict $var]}] {*}$args
 }
-
-export default varx
