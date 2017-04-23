@@ -306,7 +306,51 @@ Will go more into this in the future, but it's essentially completely transparen
 It also automatically modifies and copies tables as you change the schema so that,
 if possible, we will copy the values over to the new schema.
 
+### Limiter Middleware
 
+Limiter is an optional middleware which can automatically perform filters on 
+the state to remove and sort the state. It's various options can change how 
+its evaluation is conducted.  
+
+In the example below, we have a persistent state container which is limited 
+to 10 keys total, is sorted by the newest values (so they oldest is removed 
+when we pass 10 keys), and expects that the given expression passes (which checks 
+if expires is defined in the item and returns 1 if it has not yet expired).
+
+```tcl
+state register EventLog [dict create \
+  prefix [app param "Instance ID"] 
+] {
+  middlewares { limiter persist subscriptions }
+  config {
+    persist { 
+      encrypt 0 
+      bulk    1 
+      prefix  $prefix 
+    }
+    limiter { 
+      keys 10
+      sort { 
+        -reverse 1 
+        -path    timestamp 
+        -expect  1
+        -expr    { 
+           ! [dict exists $value expires] 
+          || [clock seconds] < [dict get $value expires]
+        }
+      }  
+    }
+  }
+  items {
+    key      string uid
+    required string title
+    required number timestamp
+    required string formatted_timestamp
+    optional number expires
+  }
+}
+
+```
 
 ### Custom Types 
 

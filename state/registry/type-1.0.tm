@@ -45,15 +45,15 @@ proc ::state::register_default_types {} {
   }
   ::state::register::type mac {
     validate {v} {regexp -nocase {^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$} $v}
-    toJSON {k v json} {$json map_key $k string $v}
+    json {k v json} {$json map_key $k string $v}
   }
   ::state::register::type json {
     validate {v} { json validate $v }
-    toJSON {k v json} {$json map_key $k string $v}
+    json {k v json} {$json map_key $k string $v}
   }
   ::state::register::type enum {
     validate {v p} { expr {$v in $p} }
-    toJSON {k v json} {
+    json {k v json} {
       if {[string is entier -strict $v]} { 		    $json map_key $k number $v
       } elseif {[string is bool -strict $v]} { 	  $json map_key $k bool   $v
       } else {							                      $json map_key $k string $v
@@ -62,7 +62,7 @@ proc ::state::register_default_types {} {
   }
   ::state::register::type ni {
     validate {v p} { expr {$v ni $p} }
-    toJSON {k v json} {
+    json {k v json} {
       if {[string is entier -strict $v]} { 		    $json map_key $k number $v
       } elseif {[string is bool -strict $v]} { 	  $json map_key $k bool   $v
       } else {							                      $json map_key $k string $v
@@ -71,7 +71,7 @@ proc ::state::register_default_types {} {
   }
   ::state::register::type match {
     validate {v p} { string match $p $v }
-    toJSON {k v json} {
+    json {k v json} {
       if {[string is entier -strict $v]} { 		    $json map_key $k number $v
       } elseif {[string is bool -strict $v]} { 	  $json map_key $k bool   $v
       } else {							                      $json map_key $k string $v
@@ -80,7 +80,7 @@ proc ::state::register_default_types {} {
   }
   ::state::register::type include {
     validate {v p} { string match *${p}* $v }
-    toJSON {k v json} {
+    json {k v json} {
       if {[string is entier -strict $v]} { 		    $json map_key $k number $v
       } elseif {[string is bool -strict $v]} { 	  $json map_key $k bool   $v
       } else {							                      $json map_key $k string $v
@@ -89,7 +89,7 @@ proc ::state::register_default_types {} {
   }
   ::state::register::type range {
     validate {v p} { expr { $v >= [lindex $p 0] && $v <= [lindex $p 1]} }
-    toJSON {k v json} {
+    json {k v json} {
       if {[string is entier -strict $v]} { 		    $json map_key $k number $v
       } else {							                      $json map_key $k string $v
       }
@@ -97,11 +97,11 @@ proc ::state::register_default_types {} {
   }
   ::state::register::type percent {
     validate {v} { expr { $v >= 0 && $v <= 100 } }
-    toJSON {k v json} {$json map_key $k number $v}
+    json {k v json} {$json map_key $k number $v}
   }
   ::state::register::type greater {
     validate {v p} { expr { $v > $p } }
-    toJSON {k v json} {
+    json {k v json} {
       if {[string is entier -strict $v]} { 		    $json map_key $k number $v
       } else {							                      $json map_key $k string $v
       }
@@ -109,24 +109,40 @@ proc ::state::register_default_types {} {
   }
   ::state::register::type less {
     validate {v p} { expr { $v < $p } }
-    toJSON {k v json} {
+    json {k v json} {
       if {[string is entier -strict $v]} { 		    $json map_key $k number $v
       } else {							                      $json map_key $k string $v
       }
     }
   }
+  # ::state::register::type array {
+  #   validate {v} { string is list -strict $v }
+  #   json {k v json} {
+  #     $json map_key $k array_open
+  #     foreach e $v {
+  #       if {$e eq {}} { continue }
+  #       if {[string is entier -strict $e]}     { 		$json number $e
+  #       } elseif {[string is bool -strict $e]} { 	  $json bool   $e
+  #       } else {							                      $json string $e
+  #       }
+  #     }
+  #     $json array_close
+  #   }
+  # }
+  # Test utilizing [json typed] to render the array as nested json
   ::state::register::type array {
     validate {v} { string is list -strict $v }
-    toJSON {k v json} {
-      $json map_key $k array_open
-      foreach e $v {
-        if {$e eq {}} { continue }
-        if {[string is entier -strict $e]}     { 		$json number $e
-        } elseif {[string is bool -strict $e]} { 	  $json bool   $e
-        } else {							                      $json string $e
-        }
-      }
-      $json array_close
+    json {k v json} {
+      # $json map_key $k array_open
+      # foreach e $v {
+      #   if {$e eq {}} { continue }
+      #   if {[string is entier -strict $e]}     { 		$json number $e
+      #   } elseif {[string is bool -strict $e]} { 	  $json bool   $e
+      #   } else {							                      $json string $e
+      #   }
+      # }
+      # $json array_close
+      $json map_key $k number [::json typed $v]
     }
   }
   

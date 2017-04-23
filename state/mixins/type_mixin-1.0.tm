@@ -36,12 +36,31 @@
 		return $response
 	}
 	
-	method serialize {json key value args} {
+	method serialize {json key op value args} {
 		my variable TYPE
 		if { [info exists TYPE] && $TYPE ne {} } {
 			set TypeSchema [::state::type $TYPE]
 			if { [dict exists $TypeSchema json] } {
-				tailcall {*}[dict get $TypeSchema json func] $key $value $json
+				switch -nocase -- $op {
+					snapshot {
+						# We have both prev and current values
+						if { [dict get $value prev] eq {} } {
+							# We dont serialize empty values
+							dict unset value prev
+						}
+						$json map_key $key map_open
+						dict for { k v } $value {
+							{*}[dict get $TypeSchema json func] $k $v $json
+						}
+						$json map_close
+					}
+					prev - values {
+						if { $value ne {} } {
+							tailcall {*}[dict get $TypeSchema json func] $key $value $json	
+						}
+						
+					}
+				}
 			}
 		}
 	}

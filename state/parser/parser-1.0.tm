@@ -84,8 +84,8 @@ proc ::state::parse::query {localID args} {
 proc ::state::parse::subscription {localID args} {
   SetArgs
   return [dict create \
-    script          [string trim $script] \
-    subscription    [Evaluate $localID $query $setters]
+    script       [string trim $script] \
+    subscription [Evaluate $localID $query $setters]
   ]
 }
 
@@ -108,7 +108,7 @@ proc ::state::parse::event {localID args} {
 }
 
 proc ::state::parse::Evaluate {localID container {setters {}} {scriptArgs {}}} {
-  set parsedDict [dict create]
+  set parsedDict [dict create localID $localID]
   dict for {attribute data} $container {
     try {
       if { [llength $data] == 1 } { set data [lindex $data 0] }
@@ -117,7 +117,6 @@ proc ::state::parse::Evaluate {localID container {setters {}} {scriptArgs {}}} {
       ::onError $result $options "While Parsing $localID attribute $attribute"
     }
   }
-  dict set parsedDict localID $localID
   dict set parsedDict setters $setters
   return $parsedDict
 }

@@ -4,20 +4,7 @@ namespace eval ::state::parse::parser {}
 
 variable ::state::parse::parser::SubstSetter 1
 
-proc ::state::parse::parser::Substituter { __setters } {
-  variable SubstSetter
-  set SubstSetter [info coroutine]
-  after 0 [info coroutine]
-  yield   [info coroutine]
-  dict with __setters {}
-  set __v {}
-  while {1} {
-    set __v [yield [subst ${__v}]]
-    if { ${__v} eq "@@DONE" } { break }
-  }
-  rename $SubstSetter {}
-  set SubstSetter noop
-}
+proc ::state::parse::parser::Substituter { __setters } {}
 
 proc ::state::parse::parser::ParseItemOps ops {
   set i 	0
@@ -104,7 +91,7 @@ proc ::state::parse::parser::items {} {
   set itemsData [dict create \
     key {} required [list] items [dict create]
   ]
-  set ids [list]
+  set ids [list] ; set ops {} ; set params {}
   foreach item $items {
     ParseOpLine
     set config [ParseItemOps $ops]
@@ -172,10 +159,20 @@ proc ::state::parse::parser::ConditionsGroup {conditions} {
   foreach item $conditions {
     ParseOpLine
     set ops [ParseConditionOps $ops]
-
     set key [dict get $ops key]
+    switch -- $key {
+      @entry {
+        # A special value that refers to the key of the given state
+        set localID [dict get $parsedDict localID]
+        # We only substitute if @entry is not a key in this state that
+        # the user created.
+        if { "@entry" ni [::state items $localID] } {
+          set key [::state key $localID]
+          dict set ops key $key
+        }
+      }
+    }
     if { $key ni $keys } { lappend keys $key }
-    
     dict set ops params $params
     if { [dict get $ops isActive] } { 
       if { $key ni $activeKeys } { lappend activeKeys $key }
@@ -185,7 +182,6 @@ proc ::state::parse::parser::ConditionsGroup {conditions} {
       dict unset ops isActive
       lappend rules $ops 
     }
-    
   }
   set rules [concat $activeRules $rules]
   lappend active $activeKeys
@@ -224,7 +220,7 @@ proc ::state::parse::parser::ParseConditionOps ops {
   ]
 }
 
-proc ::state::parse::parser::descriptions {{recursed false}} {
+proc ::state::parse::parser::descriptions {{recursed 0}} {
   set recurse [list items]
   upvar 1 parsedDict	parsedDict
   upvar 1 data				descriptions
@@ -233,7 +229,7 @@ proc ::state::parse::parser::descriptions {{recursed false}} {
     upvar 1 id _id
   }
   dict for {id description} $descriptions {
-    if {$id in $recurse && !$recursed} {
+    if { $id in $recurse && !$recursed } {
       descriptions 1
     } elseif {$recursed} {
       dict set parsedDict descriptions ${_id} $id $description 	
@@ -248,8 +244,8 @@ proc ::state::parse::parser::titles {} {
   upvar 1 data				titles
   upvar 1 setters 		setters
   if { $titles eq {} } { return }
-  if { $setters ne {} && [string hasvars $default] } {
-    set vars [string varnames $default]
+  if { $setters ne {} && [string hasvars $titles] } {
+    set vars [string varnames $titles]
     foreach var $vars {
       set titles [string map  [list \$$var \{[dict get $setters $var]\}] $titles]
     }
@@ -299,48 +295,44 @@ proc ::state::parse::parser::formatters {} {
 
 
 proc ::state::parse::parser::vendor {} {
-  upvar 1 parsedDict		__parsedDict
-  upvar 1 setters				__setters
-  upvar 1 data					__vendor
+  upvar 1 parsedDict  parsedDict
+  upvar 1 setters		  setters
+  upvar 1 data        data
   
-  if { ${__vendor} eq {} } { return }
-  if { ${__setters} ne {} } {
-    set opVars [string vars ${__vendor}]
-  } else { set opVars {} }
-  
-  if {$opVars ne {}} {
-    dict with __setters {}
+  if { $data eq {} } { return }
+
+  if { $setters ne {} && [string hasvars $data] } {
+    foreach var [string varnames $data] {
+      if { [dict exists $setters $var] } {
+        set data [string map [list \$$var \{[dict get $setters $var]\}] $data]  
+      }
+    }
   }
-  
-  dict for {__k __v} ${__vendor} {
-    if { $opVars ne {} } {
-      set __k		[subst ${__k}]
-      set __v		[subst ${__v}]
-    }
-    if { ${__k} eq "ruleID" || ${__k} eq "commandID" } {
-      set __k "commandID"
-      dict set __parsedDict [string trim ${__k}] [string trim ${__v}]
-    } else {
-      dict set __parsedDict vendor [string trim ${__k}] [string trim ${__v}]
-    }
-    
+  if { [dict exists $data ruleID] && ! [dict exists $data commandID] } {
+    # change this to commandID
+    dict set parsedDict commandID [dict get $data ruleID]
+    dict unset data ruleID
+  }
+  if { $data ne {} } {
+    dict set parsedDict vendor $data
   }
   
 }
 
 proc ::state::parse::parser::config {} {
-  variable SubstSetter
   upvar 1 parsedDict	parsedDict
   upvar 1 data				data
   upvar 1 setters 		setters
-  
-  if { $setters eq {} || ! [string hasvars $data] } {
-    dict set parsedDict config $data
-  } else {
-    dict for {id value} $data {
-      dict set parsedDict config [$SubstSetter $id] [$SubstSetter $value]
+
+  if { $setters ne {} && [string hasvars $data] } {
+    foreach var [string varnames $data] {
+      if { [dict exists $setters $var] } {
+        set data [string map [list \$$var \{[dict get $setters $var]\}] $data]  
+      }
+      
     }
   }
+  dict set parsedDict config $data
 }
 
 ## TO DO 
@@ -355,20 +347,21 @@ proc ::state::parse::parser::config {} {
 proc ::state::parse::parser::middlewares {} {
   upvar 1 parsedDict parsedDict
   upvar 1 data data
-  #upvar 1 setters setters
   dict set parsedDict middlewares [list {*}$data]
 }
 
 proc ::state::parse::parser::id {} {
-  upvar 1 parsedDict	__parsedDict
-  upvar 1 data				__id
-  upvar 1 setters     __setters
-  set __opVars [string vars ${__id}]
-  if { ${__opVars} ne {} && ${__setters} ne {} } {
-    dict with __setters {}
-    set __id [subst ${__id}]
+  upvar 1 parsedDict parsedDict
+  upvar 1 data			 data
+  upvar 1 setters    setters
+  if { $setters ne {} && [string hasvars $data] } {
+     foreach var [string varnames $data] {
+      if { [dict exists $setters $var] } {
+        set data [string map [list \$$var [dict get $setters $var]] $data]  
+      }
+    }
   }
-  dict set __parsedDict id ${__id}
+  dict set parsedDict id $data
 }
 
 proc ::state::parse::parser::in {} {
@@ -409,13 +402,16 @@ proc ::state::parse::parser::every {} {
 
 proc ::state::parse::parser::title {} {
   upvar 1 parsedDict	parsedDict
-  upvar 1 data				title
+  upvar 1 data				data
   upvar 1 setters 		setters
-  if { $setters ne {} } {
-    variable SubstSetter
-    set title [$SubstSetter $title]
+  if { $setters ne {} && [string hasvars $data] } {
+     foreach var [string varnames $data] {
+      if { [dict exists $setters $var] } {
+        set data [string map [list \$$var [dict get $setters $var]] $data]  
+      }
+    }
   }
-  dict set parsedDict title $title
+  dict set parsedDict title $data
 }
 
 proc ::state::parse::parser::state {} {
@@ -428,11 +424,11 @@ proc ::state::parse::parser::evaluate {} {
   upvar 1 parsedDict	parsedDict
   upvar 1 data				evaluate
   lassign $evaluate evalArgs evalScript
-  set evalQueryArgs {}
+
   dict set parsedDict evaluate [dict create \
-    scriptArgs $evalArgs \
-    scriptQueryArgs $evalQueryArgs \
-    script $evalScript
+    scriptArgs      $evalArgs \
+    scriptQueryArgs {} \
+    script          $evalScript
   ]
 }
 

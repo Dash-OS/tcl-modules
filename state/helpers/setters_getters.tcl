@@ -71,6 +71,8 @@
 				# value. This only occurs by default if the snapshot changes.
 				foreach middleware [dict values [dict get $MIDDLEWARES onSnapshot]] {
 					$middleware onSnapshot $snapshot
+					# If a middleware upvars and removes the snapshot, we will break 
+					if { ! [info exists snapshot] } { break }
 				}
 			}
 		}
@@ -97,7 +99,10 @@
 	# Iterate through the received snapshot and set each of the items held within.
 	dict for { k v } $data {
 	  try {
-  	  set exists [ [my item $k] set $ENTRY_ID $v ]
+	    set item [my item $k]
+	    if { [info commands $item] ne {} } {
+	      set exists [ $item set $ENTRY_ID $v ]
+	    } else { set exists 0 }
   		if { ! $exists } {
   			if { $k in $ITEMS } { set ITEMS [lsearch -all -inline -not -exact $ITEMS $k] }
   		} elseif { $k ni $ITEMS } { lappend ITEMS $k }
@@ -105,13 +110,15 @@
 		  # If a validation occurs we need to revert any values we have already set
 		  foreach rkey [dict keys $data] {
 		    if { $rkey eq $k } { continue }
-		    if { ! [ [my item $rkey] revert $ENTRY_ID ] } {
-		      if { $rkey eq $KEY } {
-		        [self] destroy
-		        return
-		      } else {
-		        my remove $rkey  
-		      }
+		    set item [my item $rkey]
+		    if { [info commands $item] ne {} } {
+  		    if { ! [ $item revert $ENTRY_ID ] } {
+  		      if { $rkey eq $KEY } {
+  		        [self] destroy
+  		      } else {
+  		        my remove $rkey  
+  		      }
+  		    }
 		    }
 		  }
 		  throw VALIDATION_ERROR $result
@@ -130,7 +137,6 @@
 
 ::oo::define ::state::Item method set {key value {force 0}} {
 	upvar 1 snapshot snapshot
-
 	if { [dict exists $VALUES $key] } {
 		set prev [dict get $VALUES $key]
 	} elseif { $value ne {} } { 
@@ -219,24 +225,32 @@
 }
 
 ::oo::define ::state::Entry method get {op {items {}} args} {
+  set value {}
 	set items [expr { $items eq {} ? $ITEMS : $items }]
-	switch -- [string tolower $op] {
-	  snapshot { set value [dict create $KEY [dict create value $ENTRY_ID prev {}]] }
-	  default  { set value [dict create $KEY $ENTRY_ID] }
-	}
+# 	switch -- [string tolower $op] {
+# 	  snapshot { set value [dict create $KEY [dict create value $ENTRY_ID prev {}]] }
+# 	  default  { set value [dict create $KEY $ENTRY_ID] }
+# 	}
 	foreach itemID $items {
 		if { $itemID ni $ITEMS } { continue }
-		dict set value $itemID \
-			[ ${ITEMS_PATH}::$itemID get $op $ENTRY_ID {*}$args ]
+		set item [my item $itemID]
+		if { [info commands $item] ne {} } {
+  	  dict set value $itemID \
+  			[ $item get $op $ENTRY_ID {*}$args ]
+	  }
 	}
 	return $value
 }
 
 ::oo::define ::state::Item method get {op entryID args} {
-	if { [string equal $op "SNAPSHOT"] } {
+	if { [string equal $op SNAPSHOT] } {
 		return [ dict create value [dict get $VALUES $entryID {*}$args] prev [dict get $PREV $entryID {*}$args] ]
+	} elseif { [string equal $op ENTRY_REMOVED] } {
+	  # This is used to tell the item to expect that it will be removed so that we 
+	  # can capture the appropriate snapshot data during item removal.
+	  return [ dict create value {} prev [dict get $VALUES $entryID {*}$args] ]
 	} else {
-	  if { [info exists $op] } {
+	  if { [info exists $op] && [dict exists [set $op] $entryID {*}$args] } {
 	    return [ dict get [set $op] $entryID {*}$args ]
 	  } else {
 	    throw error "$op does not exist in item [self]"
@@ -247,11 +261,14 @@
 ## JSON / Serialization Commands
 
 ::oo::define ::state::Container method json {op args} {
-	set json [yajl create #auto]
+	set json [json start]
 	try {
 		$json map_open
 		if { $KEY eq "@@S" } {
-			set args [lassign $args items]
+			set args  [lassign $args items]
+			if { $items eq "@@S" } {
+			  set args [lassign $args items]
+			}
 			set value [entries::$KEY json $json $op $items {*}$args]
 		} else {
 			set args [lassign $args entries items]
@@ -265,8 +282,7 @@
 			}
 		}
 		$json map_close
-		set body [$json get]
-		$json delete
+		set body [json done $json]
 	} on error {result options} {
 		# If we encounter an error, we need to conduct some cleanup, then we throw
 		# the error to the next level.
@@ -274,6 +290,39 @@
 		throw error $result
 	}
 	return $body
+}
+
+# state serialize MyState \
+#   -meta    [list ] \
+#   -op      snapshot \
+#   -entries 
+  
+::oo::define ::state::Container method serialize args {
+  set json [json start]
+  $json map_open
+  if { [dict exists $args -meta] } {
+    my serialize_meta $json [dict get $args -meta] 
+  }
+  if { [dict exists $args -context] } {
+    $json map_key context number [json typed [dict get $args -context]]
+  }
+  if { [dict exists $args -entries] } {
+    $json map_key entries number [state json [namespace tail [self]] {*}[dict get $args -entries]]
+  }
+  $json map_close
+  set body [json done $json]
+  
+}
+
+::oo::define ::state::Container method serialize_meta { json values } {
+  $json map_key meta map_open
+    $json map_key state_id string [namespace tail [self]]
+    if { $values eq "all" } { set values [list KEY READY ENTRIES REQUIRED CONFIG SCHEMA SUBSCRIBED MIDDLEWARES ITEMS] }
+    # 
+    foreach value $values {
+      $json map_key [string tolower $value] number [json typed [set [string toupper $value]]]
+    }
+  $json map_close
 }
 
 ::oo::define ::state::Entry method json {json op items args} {
@@ -285,7 +334,7 @@
 }
 
 ::oo::define ::state::Item method json {json op entryID args} {
-	my serialize $json $ITEM_ID [my get $op $entryID] {*}$args
+	my serialize $json $ITEM_ID $op [my get $op $entryID] {*}$args
 }
 
 ## Remove Commands
@@ -297,6 +346,9 @@
 	  my remove_key $key_value $items {*}$args
 	} else {
 	  set args [lassign $args remove_keys items]
+	  if { $remove_keys eq {} } {
+	    set remove_keys $ENTRIES
+	  }
 		foreach key_value $remove_keys {
 		  my remove_key $key_value $items {*}$args
 		}
@@ -311,7 +363,11 @@
 		set snapshot [dict create \
 			keyID    $KEY \
 			keyValue $key_value \
-			removed  [list]
+			removed  [list] \
+			created  [list] \
+			changed  [list] \
+			keys     [list] \
+			set      [list]
 		]
 	}
 	if { $KEY eq "@@S" } {
@@ -322,6 +378,7 @@
   if { [info exists snapshot] } {
     foreach middleware [dict values [dict get $MIDDLEWARES onSnapshot]] {
 			$middleware onSnapshot $snapshot
+			if { ! [info exists snapshot] } { break }
 		}
   }
 	return
@@ -331,15 +388,22 @@
   upvar 1 snapshot snapshot
   if { $items eq {} } {
     if { [info exists snapshot] } {
-      dict set snapshot removed [concat $KEY $ITEMS]
-      dict set snapshot items   [my get SNAPSHOT]
+      dict set snapshot removed $ITEMS
+      dict set snapshot items [my get ENTRY_REMOVED]
+      dict set snapshot entry_removed 1
     }
     my destroy
     return
   } else {
     foreach itemID $items {
-  		[my item $itemID] set $ENTRY_ID {}
-  		set ITEMS [lsearch -all -inline -not -exact $ITEMS[set ITEMS ""] $itemID]
+      set item [my item $itemID]
+      if { [info commands $item] ne {} } {
+        $item set $ENTRY_ID {}
+        set ITEMS [lsearch -all -inline -not -exact $ITEMS[set ITEMS ""] $itemID]
+      }
+  	}
+  	if { [llength $ITEMS] == 0 } {
+  	  # When we have no more items, we remove ourselves
   	}
   }
 }

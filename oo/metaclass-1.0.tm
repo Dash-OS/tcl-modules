@@ -1,4 +1,3 @@
-package require alias
 
 namespace eval ::oo::metaclass {
   
@@ -84,58 +83,61 @@ proc ::oo::metaclass::define { metaclass what args } {
     rename variable {}
   }
   
-  method constructor {argnames body args} {
-    tailcall ::oo::define [self] constructor $argnames [format {
-      %s ; %s } ::oo::metaclass::construct $body
-    ]
-  }
-  
-  method unknown {method args} {
-    switch -- $method {
-      namespace { return [namespace current] }
-      default   { ::unknown $method {*}$args }
-    }
-  }
-  
   self method namespace {} { namespace current }
-  method namespace      {} { namespace current }
-  
-  method scope ns {
-    ::variable scope $ns
-    namespace eval $ns {}
-  }
-
-  method create {name args} {
-    ::variable scope
-    if { [info object class [self]] eq "::oo::metaclass" } {
-      if { [info exists scope] } {
-        set path ${scope}::$name
-      } else { 
-        set path [uplevel 1 {namespace current}]::$name }
-      if { [info commands ${path}::my] ne {} } {
-        set path ${path}[incr ::oo::metaclass::i]
-      }
-      tailcall my createWithNamespace $name $path {*}$args
-    } else {
-      set id [namespace tail $name]
-      if { [info exists scope] } {
-        set path ${scope}::$id 
-      } else { set path [namespace current]::$id }
-      if { [info commands ${path}::my] ne {} } {
-        set path ${path}[incr ::oo::metaclass::i]
-      }
-      tailcall my createWithNamespace \
-        $name \
-        $path {*}$args
-    }
-  }
-  
-  method new {args} {
-    set i [ incr ::oo::metaclass::i ]
-    tailcall my createWithNamespace \
-      Obj$i \
-      [namespace current]::[namespace tail [self]]Obj$i {*}$args
-  }
   
 }
 
+
+::oo::define ::oo::metaclass method constructor {argnames body args} {
+  tailcall ::oo::define [self] constructor $argnames [format {
+    %s ; %s } ::oo::metaclass::construct $body
+  ]
+}
+  
+::oo::define ::oo::metaclass method namespace {} { namespace current }
+
+::oo::define ::oo::metaclass method scope ns {
+  ::variable scope $ns
+  namespace eval $ns {}
+}
+
+
+::oo::define ::oo::metaclass method create {name args} {
+  ::variable scope
+  if { [info object class [self]] eq "::oo::metaclass" } {
+    if { [info exists scope] } {
+      set path ${scope}::$name
+    } else { 
+      set path [uplevel 1 {namespace current}]::$name }
+    if { [info commands ${path}::my] ne {} } {
+      set path ${path}[incr ::oo::metaclass::i]
+    }
+    tailcall my createWithNamespace $name $path {*}$args
+  } else {
+    set id [namespace tail $name]
+    if { [info exists scope] } {
+      set path ${scope}::$id 
+    } else { set path [namespace current]::$id }
+    if { [info commands ${path}::my] ne {} } {
+      set path ${path}[incr ::oo::metaclass::i]
+    }
+    tailcall my createWithNamespace \
+      $name \
+      $path {*}$args
+  }
+}
+
+::oo::define ::oo::metaclass method new {args} {
+  set i [ incr ::oo::metaclass::i ]
+  tailcall my createWithNamespace \
+    Obj$i \
+    [namespace current]::[namespace tail [self]]Obj$i {*}$args
+}
+
+::oo::define ::oo::metaclass method unknown {method args} {
+  switch -- $method {
+    namespace { return [namespace current] }
+    default   { ::unknown $method {*}$args }
+  }
+  return
+}

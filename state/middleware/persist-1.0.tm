@@ -16,6 +16,7 @@
 # {ip {value 192.168.1.10 prev 192.168.1.3} state {value 1 prev 0}} 
 # changed {ip state} entryID 2 keys {ip state} refs 
 # {entry ::Import::Modules::state::Containers::DeviceStream::Entries::2}
+
 namespace eval ::state::configure {}
 
 # Build the subscriptions middleware so that we can attach it to the state
@@ -39,11 +40,9 @@ module create ::state::middleware::persist {
 	  if { $config eq {} } {
 	    throw error "state-persist-middleware requires configuration"
 	  }
-	 
-	  if { [dict exists $stateConfig persist]  } {
+
+	  if { [dict exists $stateConfig persist] } {
 	    set CONFIG [dict get $stateConfig persist]
-	  } elseif { [dict exists $stateConfig persist] } {
-	  	set CONFIG [dict get $stateConfig persist] 
 	  } else { set CONFIG {} }
 	  
     if { ! [dict exists $CONFIG path] } {
@@ -51,6 +50,7 @@ module create ::state::middleware::persist {
     }
 
 		file mkdir [dict get $CONFIG path]
+    
     
     if { ! [dict exists $CONFIG encrypt] } {
       if { [dict exists $stateConfig encrypt] } {
@@ -122,24 +122,26 @@ module create ::state::middleware::persist {
 	  if { $state ne {} } {
 	  	# For each entry we need to try to set the state.  If an error occurs then
 	  	# we need to remove the given value from the persistence
-	  	set remove_entries [list]
 	  	foreach entry $state {
 	  		try {
 	  			$CONTAINER set $entry
 	  		} trap MISSING_REQUIRED {} {
 	  			set reset_required 1
+	  		} on error {result options} {
+					set reset_required 1
 	  		}
 	  	}
 	  }
 	  
 	  if { $reset_required } { 
-	  	after 0 [callback my RefreshPersistence]
-	  	
+	  	after 0 [callback my RefreshPersistence 1]
+	  } else {
+	  	{*}$CONTAINER middleware_event rehydrated
 	  }
 	  
 	}
 	
-	method RefreshPersistence {} {
+	method RefreshPersistence { {rehydrate 0} } {
 		# This means that we need to refresh the persistence file from our current
 		# state from scratch.  This should rarely occur - only if we switched from
 		# using "bulk" to not using bulk at some point during an update.
@@ -147,10 +149,11 @@ module create ::state::middleware::persist {
 		if { [dict get $CONFIG bulk] } {
 			SaveSnapshot $NAME $CONFIG bulk
 		} else {
-			set stateKeys [state entries $NAME]
-			foreach keyValue $stateKeys {
-				SaveSnapshot $NAME $CONFIG $keyValue
-			}
+			foreach keyValue [state entries $NAME] { SaveSnapshot $NAME $CONFIG $keyValue }
+		}
+		
+		if { [string is true -strict $rehydrate] } {
+			{*}$CONTAINER middleware_event rehydrated	
 		}
 		
 	}
@@ -224,6 +227,7 @@ proc ::state::middleware::persist::Remove { name config {keyValue {}} } {
 proc ::state::middleware::persist::SaveSnapshot { name config keyValue {new 1} } {
 	set path [dict get $config path]
   set filename [ResolveFilename $name $config $keyValue]
+  file mkdir $path
   if { [dict get $config bulk] } {
     set value [dict values [state get $name]]
   } else {
@@ -234,10 +238,15 @@ proc ::state::middleware::persist::SaveSnapshot { name config keyValue {new 1} }
   		set value [state get $name]
   	}
   }
-  if { [dict get $config encrypt] } {
-    set value [::encrypt $value] 
+  if { [dict get $config encrypt] } { set value [::encrypt $value] }
+  
+  set file [file join $path $filename]
+  if { $value ne {} } {
+  	::fileutil::writeFile -translation binary $file $value	
+  } elseif { [file isfile $file] } {
+  	file delete -force -- $file
   }
-  ::fileutil::writeFile -translation binary [file join $path $filename] $value
+  
 }
 
 
@@ -286,16 +295,16 @@ proc ::state::middleware::persist::rehydrate { name config schema } {
 	  }
 	  if { ! $was_notbulk && ( [dict get $config bulk] || $was_bulk ) } {
 			lappend contents {*}$data	
-	  } else {
-	  	lappend contents $data
-	  }
+	  } else { lappend contents $data }
+	  if { $contents eq {} } { file delete -force -- $file }
 	}
+	
 	if { $reset_required } {
 		# This is indicated above which means that we used to have bulk persistence
 		# but we don't anymore.  In this case we are going to remove the file
 		# once it has been rehydrated
 		foreach file $files {
-			file delete -force $file
+			if { [file isfile $file] } { file delete -force -- $file }
 		}
 	}
 	return [list $contents $reset_required]
@@ -311,7 +320,7 @@ proc ::state::configure::persist { args } {
 		throw error "persist requires the -path argument"	
   }
   dict set config path [file normalize [file nativename [set -path]]]
-  
+  file mkdir [dict get $config path]
   # Prefix value will prefix the saved state files with the given value
   if { [info exists -prefix] } {
     dict set config prefix [set -prefix] 

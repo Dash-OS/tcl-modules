@@ -25,7 +25,10 @@
 
 ::oo::define ::state::Entry destructor {
 	foreach itemID $ITEMS {
-		[my item $itemID] set $ENTRY_ID {} 1
+		set ref [my item $itemID]
+		if { [info commands $ref] ne {} } {
+			$ref set $ENTRY_ID {} 1
+		}
 	}
 	{*}$CONTAINER remove_entries [list $ENTRY_ID]
 }

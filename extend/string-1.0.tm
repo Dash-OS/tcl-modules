@@ -22,6 +22,8 @@ extend ::string {
     ::return
   }
   
+  
+  
   if { [::catch {::string cat}] } {
     proc cat args { ::join $args {} }
   }
@@ -49,6 +51,9 @@ extend ::string {
     ::regsub -all "\[ \t\n]+" $str { } newStr
     ::tailcall ::string trim $newStr
   }
+  
+  # round to the given number of decimals [string round 20 2] ; 20.00
+  proc round { n {count 2} } { ::format %.${count}f $n }
   
   proc slugify str {
     ::set str [::string map { {?} {} {&} {=} {} {} {!} {} {.} {} {,} {} {$} {} {/} {} {#} {} {[} {} {]} {} } $str]

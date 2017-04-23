@@ -191,6 +191,17 @@ proc ::state::register_default_queries {} {
 	::state::register::modifier set {}
 	::state::register::modifier removed {}
 	::state::register::modifier is {}
+	::state::register::modifier reverse {
+		on before-eval
+		evaluate { 
+			set __params $value
+			set __value  $params
+			set params ${__params}
+			set value  ${__value}
+			unset __params
+			unset __value
+		}
+	}
 	::state::register::modifier was {
 		on before-eval
 		evaluate { set value $prev }

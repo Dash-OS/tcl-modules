@@ -46,7 +46,7 @@ proc ::react::render args {
   variable @@COMPONENT PROPS STATE
   
   constructor {context args} {
-    set STATE       [dict create]
+    set STATE [my static default_state]
     set PROPS [dict merge [my static default_props] [lindex $args 0]]
     set @@COMPONENT [dict create]
     dict set @@COMPONENT status disable_state_rerender 1
@@ -133,6 +133,7 @@ proc ::react::render args {
     try { my render } on error {result options} {
       my @@Log "An Error Occurred During Render: $result"
       ~! "Render Error" "An Error Occurred During Rendering: $result" \
+        -type error \
         -context $options
     }
     set component [set @@COMPONENT]
@@ -170,7 +171,8 @@ proc ::react::render args {
   
   method @@Log msg {
     set msg "[my static display_name] | [self] | $msg"
-    puts stderr $msg
+    ~! "UI Log" "$msg" \
+      -type "info"
     return $msg
   }
   
@@ -413,6 +415,15 @@ proc ::react::render args {
       return $default_props
     } elseif { $props ne {} } {
       set default_props [dict create {*}$props]
+    }
+  }
+  
+  method default_state { {state {}} } {
+    my variable default_state
+    if { [info exists default_state] } {
+      return $default_state 
+    } elseif { $state ne {} } {
+      set default_state [dict create {*}$state]
     }
   }
   

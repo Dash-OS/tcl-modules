@@ -140,11 +140,11 @@ extend ::dict {
     ::return $tempDict
   }
   
-  proc withKey {var key} {
+  proc withKey {var key args} {
     ::set tempDict {}
     ::dict for {k v} $var {
-      ::if { [::dict exists $v $key] } {
-        ::dict set tempDict $k [::dict get $v $key]	
+      ::if { [::dict exists $v $key {*}$args] } {
+        ::dict set tempDict $k [::dict get $v $key {*}$args]	
       }
     }
     ::return $tempDict
@@ -169,31 +169,113 @@ extend ::dict {
     ::return $response
   }
   
+  # dict sort values $my_dict -path [list timestamp] -first 10
   proc sort {what dict args} {
-    ::set res {}
-    ::if {$dict eq {}} { ::return }
-    ::set dictKeys [::dict keys $dict]
+    ::if { [::dict exists $args -first] } {
+      ::set range [list 0 [expr { [dict get $args -first] - 1 }]] 
+    }
+    ::if { [::dict exists $args -last] } {
+      ::set range [list end-[dict get $args -left] end]
+    }
+    ::if { [::dict exists $args -max] } {
+      ::set max [dict get $args -max]
+    }
+    ::if { [::dict exists $args -expr] } {
+      ::set expr [::dict get $args -expr] 
+      ::if { [::dict exists $args -expect] } {
+        ::set expect [::dict get $args -expect] 
+      } else { ::set expect 1 }
+    }
+    ::set rdict [::dict create]
     ::switch -glob -nocase -- $what {
-      "v*" {
-        ::set valuePositions [::dict values $dict]
-        ::foreach value [ ::lsort {*}$args [::dict values $dict] ] {
-          ::set position       [::lsearch $valuePositions $value]
-          ::if {$position eq -1} { ::puts stderr "Error for $value" }
-          ::set key            [::lindex $dictKeys $position]
-          ::set dictKeys       [::lreplace $dictKeys $position $position]
-          ::set valuePositions [::lreplace $valuePositions $position $position]
-          ::dict set res $key $value
+      v* {
+        ::if { [::dict exists $args -path] } {
+          ::set path [dict get $args -path]
+          ::set sort_dict [::dict withKey $dict {*}$path]
+          ::dict unset args -path
+        } else { 
+          ::set path {}
+          ::set sort_dict $dict 
+        }
+        ::set keys      [::dict keys $sort_dict]
+        ::set positions [::dict values $sort_dict]
+        ::if { [::dict exists $args -sort] } {
+          ::set values [::lsort {*}[::dict get $args -sort] $positions]
+        } else {
+          ::set values [::lsort $positions]
+        }
+        ::if { [::info exists range] } {
+          ::set values [::lrange $values {*}$range] 
+        }
+        ::if { [::dict exists $args -reverse] && [::dict get $args -reverse] } {
+          ::set keys      [::lreverse $keys]
+          ::set positions [::lreverse $positions]
+          ::set values    [::lreverse $values]
+        }
+        ::foreach Value $values {
+          ::if { [::info exists max]  && [::dict size $rdict] >= $max } { ::break }
+          ::set position [::lsearch $positions $Value]
+          ::if { $position == -1 } { ::puts stderr "Error for $Value" ; ::continue }
+          ::set key   [::lindex $keys $position]
+          ::set value [::dict get $dict $key]
+          ::if { [::info exists expr] && $expr ne {} } {
+            ::set expr_result [::expr { $expect
+              ?   [::try [::list expr $expr]]
+              : ! [::try [::list expr $expr]]
+            }]
+            ::if { $expr_result } { ::continue }
+          }
+          ::set keys      [::lreplace $keys $position $position]
+          ::set positions [::lreplace $positions $position $position]
+          ::dict set rdict $key $value
+          ::dict set rdict $key {*}$path $Value
         }
       }
-      "k*" -
-      default {
-        ::foreach key [::lsort {*}$args $dictKeys] {
-          ::dict set res $key [::dict get $dict $key] 
+      k* - default {
+        ::set keys [::dict keys $dict]
+        ::if { [::dict exists $args -sort] } {
+          ::set keys [::lsort {*}[::dict get $args -sort] $keys] 
+        }
+        ::if { [::info exists range] } {
+          ::set keys [::lrange $keys {*}$range] 
+        }
+        ::if { [::dict exists $args -reverse] && [::dict get $args -reverse] } {
+          ::set keys [::lreverse $keys]
+        }
+        ::foreach key $keys {
+          ::if { [::info exists max]  && [::dict size $rdict] >= $max } { ::break }
+          ::if { [::info exists expr] && $expr ne {} && [::string is false [try $expr]] } { ::continue }
+          ::dict set rdict $key [::dict get $dict $key] 
         }
       }
     }
-    ::return $res
+    ::return $rdict
   }
+  # proc sort {what dict args} {
+  #   ::set res {}
+  #   ::if {$dict eq {}} { ::return }
+  #   ::set dictKeys [::dict keys $dict]
+  #   ::switch -glob -nocase -- $what {
+  #     "v*" {
+  #       ::set valuePositions [::dict values $dict]
+  #       ::foreach value [ ::lsort {*}$args [::dict values $dict] ] {
+  #         ::set position       [::lsearch $valuePositions $value]
+  #         ::if {$position eq -1} { ::puts stderr "Error for $value" }
+  #         ::set key            [::lindex $dictKeys $position]
+  #         ::set dictKeys       [::lreplace $dictKeys $position $position]
+  #         ::set valuePositions [::lreplace $valuePositions $position $position]
+  #         ::dict set res $key $value
+  #       }
+  #     }
+  #     "k*" -
+    #   default {
+    #     ::foreach key [::lsort {*}$args $dictKeys] {
+    #       ::dict set res $key [::dict get $dict $key] 
+    #     }
+    #   }
+    # }
+  #   ::return $res
+  # }
   
   proc invert {var args} {
     ::set d {}

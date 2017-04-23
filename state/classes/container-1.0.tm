@@ -1,5 +1,5 @@
 ::oo::define ::state::Container {
-  variable KEY READY ENTRIES REQUIRED CONFIG SCHEMA SUBSCRIBED MIDDLEWARES ITEMS
+  variable KEY READY ENTRIES REQUIRED CONFIG SCHEMA SUBSCRIBED MIDDLEWARES ITEMS SINGLETON SHARED
 }
 
 ::oo::metaclass::define ::state::Container constructor schema {
@@ -10,13 +10,17 @@
 
   if { [dict exists $schema config] } {
     set CONFIG [dict get $schema config]
+    
     dict unset schema config
   } else { set CONFIG [dict create] }
+  if { [dict exists $CONFIG shared] } {
+    set SHARED [dict get $CONFIG shared]
+  } else { set SHARED 0 }
   set ENTRIES [list]
   set SCHEMA  $schema
   set MIDDLEWARES [dict create]
   set SUBSCRIBED 1
-  if { $KEY eq {} } { set KEY "@@S" }
+  if { $KEY eq {} } { set KEY "@@S" ; set SINGLETON 1 } else { set SINGLETON 0 }
   my CreateItems
   if { [dict exists $SCHEMA default] && $KEY eq "@@S" } {
     # Default is only available for singleton state and it is 
@@ -30,6 +34,7 @@
 
 ::oo::define ::state::Container destructor {
   puts "[self] is being destroyed!"
+  my middleware_event onDestroy
 }
 
 ::oo::define ::state::Container method CreateItems {} {
@@ -65,6 +70,7 @@
 }
 
 ::oo::define ::state::Container method remove_entries { entryIDs } {
+  if { ! [info exists ENTRIES] } { return }
   foreach entryID $entryIDs {
     set ENTRIES [lsearch -all -inline -not -exact $ENTRIES[set ENTRIES ""] $entryID]
   }
@@ -100,6 +106,7 @@
       if { "onSnapshot" in $methods } {
         dict set MIDDLEWARES onSnapshot $middlewareID $instance
       }
+      
       if { [dict exists $MiddlewareMixins container] } {
         ::oo::objdefine [self] mixin -append [dict get $MiddlewareMixins container]
       }
@@ -108,7 +115,6 @@
         set mixin [dict get $MiddlewareMixins item]
         foreach itemID $ITEMS { ::oo::objdefine items::$itemID mixin -append $mixin } 
       }
-      
       if { "onRegister" in $methods } {
         lappend onregisters [list $middlewareID $instance]
       }
@@ -119,4 +125,21 @@
     {*}$instance onRegister $SCHEMA $CONFIG
   }
   set READY 1
+}
+
+::oo::define ::state::Container method middleware_event {event args} {
+  if { ! [string match "on*" $event] } { set event "on[string totitle $event]" }
+  foreach middleware [info commands middlewares::*] {
+    if { $event in [info class methods [info object class $middleware]] } {
+      try {
+        $middleware $event {*}$args
+      } on error {result options} {
+        ::onError $result $options "While triggering a Middleware Event $event on $middleware"
+      }
+    }
+  }
+}
+
+::oo::define ::state::Container method events value {
+  set READY [string is true -strict $value]
 }

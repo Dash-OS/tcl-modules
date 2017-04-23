@@ -8,7 +8,6 @@
 			return
 		}
 		set schema [::state::parse::state $localID {*}$args]
-		#puts $schema
 		return [ ::state::Container create ::state::containers::${localID} $schema ]
 	} on error {result options} {
 		puts "Register Error: $result"
@@ -29,10 +28,14 @@
 	return $ref
 }
 
-# ::oo::define ::state::API method key {localID {ref {}}} {
-# 	if { $ref eq {} } { set ref [state ref $localID] }
-# 	return [$ref prop key]
-# }
+::oo::define ::state::API method singleton { localID } {
+	return [ expr { [my key $localID] eq "@@S" } ]
+}
+
+::oo::define ::state::API method key {localID {ref {}}} {
+	if { $ref eq {} } { set ref [my ref $localID] }
+	return [$ref prop key]
+}
 
 ::oo::define ::state::API method prop {localID prop {ref {}}} {
 	if { $ref eq {} } { set ref [my ref $localID] }
@@ -114,33 +117,10 @@
 	tailcall ::state::configure::$what {*}$args
 }
 
-# ::oo::define ::state::API method keys {localID} {
-# 	set ref [state ref $localID]
-# 	if {[state prop $localID singleton $ref]} {
-# 		return [dict keys [$ref get $localID]]
-# 	} else {
-# 		return [dict keys [$ref prop refs]]
-# 	}
-# }
 
-# ::oo::define ::state::API method items {localID entryID} {
-# 	set ref [state ref $localID]
-# 	if {[state prop $localID singleton $ref]} {
-# 		return [state keys $localID]	
-# 	} else {
-# 		return [dict keys [dict get? [$ref get $entryID "current"] $entryID] ]
-# 	}
-# }
-
-# ::oo::define ::state::API method values {localID {entryIDs {}} args} {
-# 	set ref [state ref $localID]
-# 	if {[state prop $localID singleton $ref]} {
-# 		return [dict values [$ref get $localID]]
-# 	} else {
-# 		set data [$ref values $entryIDs "current" $args]
-# 		return $data
-# 	}
-# }
+::oo::define ::state::API method values {localID args} {
+	return [dict values [my get $localID {*}$args]]
+}
 
 
 ::oo::define ::state::API method delete {localID} {
@@ -153,8 +133,6 @@
 
 ::oo::define ::state::API method removeIf {localID args} {
 	set entryIDs [my query $localID {*}$args]
-
-	#puts "REMOVING ENTRIES DUE TO REMOVE IF QUERY: $entryIDs"
 	if { $entryIDs ne {} } { my remove $localID $entryIDs }
 	return $entryIDs
 }
@@ -164,9 +142,9 @@
 }
 
 ::oo::define ::state::API method containers {{trim 1}} {
-	set containers [info class instances Container]
+	set containers [info class instances ::state::Container]
 	return [ expr { [string is true -strict $trim] \
-		? [string map [list [namespace parent]::Containers:: {}] $containers] \
+		? [string map [list ::state::containers:: {}] $containers] \
 		: $containers
 	}]
 }
@@ -179,67 +157,31 @@
 	tailcall [my ref $localID] json VALUES {*}$args
 }
 
-# ::oo::define ::state::API method serialize {localID {what {}} {entryIDs {}} {itemIDs {}}} {
-# 	set ref [state ref $localID]
-# 	if {[isTrue [state empty $localID $ref]]} { return }
-# 	return [$ref toJSON $entryIDs $what $itemIDs]
-# }
+
+::oo::define ::state::API method serialize {localID args} {
+	tailcall [my ref $localID] serialize {*}$args
+}
 
 ::oo::define ::state::API method query {localID args} {
 	set ref [my ref $localID]
-	set query [parser query $localID {*}$args]
+	set query [::state::parse::query $localID {*}$args]
 	return [$ref query $query]
 }
 
-# ::oo::define ::state::API method getIndex {localID indexKey} {
-# 	set ref [state ref $localID]
-# 	if {[isTrue [state empty $localID $ref]]} { return }
-# 	set index [$ref getIndex $indexKey]
-# 	return $index
-# }
-
-# ::oo::define ::state::API method subscriptions { {localID {}} {pattern *} } {
-# 	if {$localID ne {}} {
-# 		set subscriptions [state prop $localID subscriptions]
-# 		dict pull subscriptions subscriptions
-# 		set subscriptions [dict values [dict withKey $subscriptions ref]]
-# 		if {$pattern ne {*}} {
-# 			set pattern [string map {"Subscriptions::" ""} $pattern]
-# 			set pattern Subscriptions::${pattern}
-# 			set subscriptions [lsearch -all -inline $subscriptions $pattern]
-# 		}
-# 	} else {
-# 		set subscriptions [info commands Subscriptions::${pattern}]
-# 	}
-# 	return $subscriptions
-# }
+::oo::define ::state::API method replace { localID new_state } {
+	set ref [my ref $localID]
+	state remove $localID
+	state set $localID {*}[dict values $new_state]
+}
 
 
+::oo::define ::state::API method key {localID} {
+	tailcall ::state prop $localID KEY
+}
 
-# ::oo::define ::state::API method unsubscribe { {localID {}} {pattern {}} } {
-# 	if {$localID eq {} && $pattern eq {}} { throw error "Local ID OR Pattern Required" }
-# 	if {$localID ne {} && $pattern eq {}} {
-# 		~ "
-# 			----------------
-# 				No Pattern Defined when trying to Remove from State $localID
-				
-# 				Did you mean to supply a pattern to \[state unsubscribe\] ?
-				
-# 				Tip:  If you want to unsubscribe from all of ${localID}'s subscriptions
-# 					  you can use \[state unsubscribe $localID *\]
-# 			----------------
-# 		"
-# 		return
-# 	}
-# 	set subscriptions [state subscriptions $localID $pattern]
-# 	foreach subscription $subscriptions {
-# 		try {
-# 			$subscription destroy
-# 		} on error {result options} {
-# 			::onError $result $options "While attempting to unsubscribe from $subscription"
-# 		}
-# 	}
-# }
+::oo::define ::state::API method items {localID} {
+	tailcall ::state prop $localID ITEMS
+}
 
 ::oo::define ::state::API method sync {localID} {
 	set ref [state ref $localID]

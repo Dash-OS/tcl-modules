@@ -81,7 +81,7 @@ proc ::json::exists { j args } {
 # Attempt to get the json value (returned as a dict) of the path.  If the
 # path does not exist, returns {} rather than an error.
 proc ::json::get?      args {
-  ::if { [ exists {*}$args ] } {
+  ::if { [ ::json exists {*}$args ] } {
     ::tailcall ::rl_json::json get {*}$args
   } else { ::return }
 }
@@ -135,6 +135,19 @@ proc ::json::pull { vname args } {
   }
   ::return $rj
 }
+
+# Works identically to [dict merge] but also validates.
+proc ::json::merge { json args } {
+  ::if { $json eq {} } { ::set json {{}} }
+  ::foreach arg $args {
+    ::if { ! [::json validate $arg] } { continue }
+    ::json foreach { k v } $arg {
+      ::json set json $k $v
+    }
+  }
+  ::return $json
+}
+
 
 # Similar to json pull, this allows you to provide a list as the first 
 # argument to define the path you wish to operate from as a root.
@@ -204,10 +217,8 @@ proc ::json::modify { vname args } {
 
 proc ::json::file2dict { file } {
   ::if { [::file isfile $file] } {
-    ::set fh   [::open $file r]
-    ::set data [::read -nonewline $fh]
-    ::close $fh
-    return [get $data]
+    ::set data [::string trim [::fileutil::cat $file]]
+    ::return [::json get $data]
   } else { ::throw error "File $file does not exist - cant convert from json to dict!" }
 }
 
@@ -294,13 +305,18 @@ proc ::json::object { what args } {
 }
 
 proc ::json::start {} {
-  ::set json [yajl create #auto]
-  return $json
+  ::set json [::yajl create #auto]
+  ::return $json
 }
 
 proc ::json::done { json } {
-  ::set body [$json get]
-  $json delete
+  ::try {
+    ::set body [$json get] 
+    $json delete
+  } on error {r} {
+    ::catch { $json delete }
+    ::throw $r
+  }
   ::return $body
 }
 
