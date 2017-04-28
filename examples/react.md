@@ -58,16 +58,27 @@ set store [dict create \
 ]
 ```
 
+Reducers receive dispatch events and may optionally
+set their state.  They do this by returning a >new< state
+that should be used.  A re-render will only occur if the result
+of running all your registered reducers results in store which is 
+not equal to it's previous value.
+
+Note that we are only operating on the "router" key with this reducer.  
+We may have other reducers operating on different keys.
+
+> **Important:** This should be the ONLY way that data travels into our components.  We 
+> should NEVER use global variables or any other method as it may break the 
+
 ```tcl
 # Reducers are how we manage our state.  We create a reducer easily:
 react default_store router [dict create \
   scene home
 ]
 
+
+# rendering lifecycles.
 react reduce router { store event data } {
-  # Reducers receive dispatch events and may optionally
-  # set their state.  They do this by returning a >new< state
-  # that should be used.  
   switch -- $event {
     SET_SCENE {
       # When SET_SCENE is dispatched, set the scene to the given
@@ -83,6 +94,9 @@ react reduce router { store event data } {
 }
 ```
 
+Now lets render our App!  
+
+```tcl
 Component create App {
 
   method RenderReducer {} {
