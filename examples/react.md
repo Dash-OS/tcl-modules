@@ -46,6 +46,12 @@ with a top-level store.  Whenever the store **changes** it will render through
 the app.  Only components that might care about the changed value will be 
 re-rendered. 
 
+Reducers receive dispatch events and may optionally
+set their state.  They do this by returning a >new< state
+that should be used.  A re-render will only occur if the result
+of running all your registered reducers results in store which is 
+not equal to it's previous value.
+
 Lets create a store and provide a reducer that will allow us to reducer the 
 "router" key.  We can also define a default state to be used. 
 This will essentially create 
@@ -58,11 +64,7 @@ set store [dict create \
 ]
 ```
 
-Reducers receive dispatch events and may optionally
-set their state.  They do this by returning a >new< state
-that should be used.  A re-render will only occur if the result
-of running all your registered reducers results in store which is 
-not equal to it's previous value.
+
 
 Note that we are only operating on the "router" key with this reducer.  
 We may have other reducers operating on different keys.
