@@ -57,6 +57,7 @@ Lets create a store and provide a reducer that will allow us to reducer the
 This will essentially create 
 
 ```tcl
+# JUST AN EXAMPLE OF HOW OUR STORE WILL LOOK WITH THE CONFIGURATION BELOW!
 set store [dict create \
   router [dict create \
     scene home
