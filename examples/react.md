@@ -30,11 +30,35 @@ Ok so that isn't very exciting, but it shows the simplest form of a Tcl React Co
 Next lets take a look at adding the concepts provided by [react-redux](https://github.com/reactjs/react-redux) 
 to allow updating our UI's state as well as managing it.
 
+Next lets take a look at a little bit more complex example where we might have 
+multiple pages to render with components.  Lets break it down in pieces:
+
+Require the packages as well as [callback] (shortcut for [namespace code [list ...]])
+
 ```tcl
 package require callback
 package require react
 package require react::reducer
+```
 
+In this next example we will take advantage of the redux concept to provide us 
+with a top-level store.  Whenever the store **changes** it will render through 
+the app.  Only components that might care about the changed value will be 
+re-rendered. 
+
+Lets create a store and provide a reducer that will allow us to reducer the 
+"router" key.  We can also define a default state to be used. 
+This will essentially create 
+
+```tcl
+set store [dict create \
+  router [dict create \
+    scene home
+  ]
+]
+```
+
+```tcl
 # Reducers are how we manage our state.  We create a reducer easily:
 react default_store router [dict create \
   scene home
@@ -57,6 +81,7 @@ react reduce router { store event data } {
   }
   return $store 
 }
+```
 
 Component create App {
 
