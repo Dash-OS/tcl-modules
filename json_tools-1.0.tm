@@ -230,8 +230,10 @@ proc ::json::file2dict { file } {
 # 
 # This is a key ingredient to allowing many of the other functions to work.
 proc ::json::typed {value args} {
+  # puts "typed $value"
   ::regexp {^value is a (.*?) with a refcount} \
     [::tcl::unsupported::representation $value] -> type
+  # puts "type $type"
   ::if { "-map" ni $args && ! [ ::catch { type $value } err ] } { ::return $value }
   ::switch -glob -- $type {
     dict   { 

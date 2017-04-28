@@ -38,17 +38,30 @@ proc ::http::_followRedirects {url args} {
 }
 
 proc ::wget { url dest {retry 1} } {
-  set chan [open $dest w]
-  chan configure $chan -translation binary
-  set url   [::http::_followRedirects $url]
-  set token [::http::geturl $url -channel $chan -binary 1]
-  if { [::http::ncode $token] != "200" } {
+  try {
+    set chan [open $dest w]
+    chan configure $chan -translation binary
+    set url   [::http::_followRedirects $url]
+    set token [::http::geturl $url -channel $chan -binary 1]
+    if { [::http::ncode $token] != "200" } {
+      ::http::cleanup $token
+      if { $retry > 0 } { 
+        after 500
+        tailcall ::wget $url $dest [incr retry -1]
+      }
+      return 0
+    }
     ::http::cleanup $token
-    if { $retry } { return [ ::http::wget $url $dest 0] }
-    return 0
+    chan close $chan
+  } on error {result} {
+    if { [info exists token] } {
+      ::http::cleanup $token 
+    }
+    if { $retry > 0 } {
+      after 500
+      tailcall ::wget $url $dest [incr retry -1]
+    }
   }
-  ::http::cleanup $token
-  chan close $chan
   return 1
 }
 

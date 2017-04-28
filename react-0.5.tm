@@ -132,9 +132,9 @@ proc ::react::render args {
     dict set @@COMPONENT render_child 0
     try { my render } on error {result options} {
       my @@Log "An Error Occurred During Render: $result"
-      ~! "Render Error" "An Error Occurred During Rendering: $result" \
-        -type error \
-        -context $options
+      # ~! "Render Error" "An Error Occurred During Rendering: $result" \
+      #   -type error \
+      #   -context $options
     }
     set component [set @@COMPONENT]
     if { [dict exists $component rendered] && [dict exists $component c] } {
@@ -171,8 +171,8 @@ proc ::react::render args {
   
   method @@Log msg {
     set msg "[my static display_name] | [self] | $msg"
-    ~! "UI Log" "$msg" \
-      -type "info"
+    # ~! "UI Log" "$msg" \
+    #   -type "info"
     return $msg
   }
   

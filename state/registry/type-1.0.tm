@@ -115,6 +115,17 @@ proc ::state::register_default_types {} {
       }
     }
   }
+  ::state::register::type dict {
+    validate {v} { 
+      try {
+        dict size $v
+        set result 1
+      } on error {} { set result 0 }
+    }
+    json {k v json} {
+      $json map_key $k number [::json typed [dict create {*}$v]]
+    }
+  }
   # ::state::register::type array {
   #   validate {v} { string is list -strict $v }
   #   json {k v json} {

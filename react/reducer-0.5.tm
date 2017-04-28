@@ -3,7 +3,6 @@ package require react
 namespace eval ::react {}
 
 proc ::react::register_reducer args {
-  puts reg
   if { $args eq {} } { unset -nocomplain ::react::reducer_callbacks }
   set ::react::reducer_callbacks $args
 }

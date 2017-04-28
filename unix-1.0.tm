@@ -2,8 +2,8 @@
 # exec when tuapi is not available.
 catch { package require tuapi }
 package require fileutil
-
-namespace eval unix {}
+package require ensembled
+namespace eval unix { ensembled }
 
 proc ::unix::restart { {delay 5000} } {
   after $delay {
