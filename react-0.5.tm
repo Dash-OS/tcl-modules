@@ -358,7 +358,6 @@ proc ::react::render args {
     if { [self next] ne {} } { next }
   }
   
-  
   # By default, when your component's state or props change, your component will 
   # re-render. If your render() method depends on some other data, you can tell 
   # React that the component needs re-rendering by calling forceUpdate().

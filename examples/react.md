@@ -158,8 +158,20 @@ Component create Login {
     password {}
   }
   
+  method onInputChanged {key value} {
+    puts "Input $key changed to : $value -- setting state and re-rendering"
+    my setState [dict create $key $value]
+  }
+  
   method componentWillMount {} {
     puts "Login Scene will Mount Shortly!"
+  }
+  
+  method componentDidMount {} {
+    # While this is generally not something we would do, lets look at
+    # what would happen when the TextInput updates its value
+    puts "Login Scene Did Mount!"
+    after 0 [callback my onInputChanged username "me@email.com"]
   }
   
   method componentWillUnmount {} {
@@ -168,8 +180,16 @@ Component create Login {
   
   method render {} {
     puts "Login Scene Renders!"
-    *TextInput key username label "Username" value [dict get $STATE username]
-    *TextInput key password label "Password" value [dict get $STATE password]
+    *TextInput \
+      key      username \
+      label    "Username" \
+      value    [dict get $STATE username] \
+      onChange [callback my onInputChanged password]
+    *TextInput \
+      key      password \
+      label    "Password" \
+      value    [dict get $STATE password] \
+      onChange [callback my onInputChanged password]
   }
   
 }
@@ -180,8 +200,9 @@ Component create TextInput {
   # We can define default_props that will be used for any props 
   # that the user does not explicitly define.
   default_props {
-    value      {}
     placholder "Enter Value"
+    onChange   {}
+    value      {}
   }
   
   method render {} {
@@ -202,11 +223,8 @@ The results of running the above is:
 ```bash
 App Renders!
 Store | router {scene home}
-mount
 Home Scene Renders!
-event
 Setting Scene to: login
-creator
 App Renders!
 Store | router {scene login}
 Home Scene is being removed!
@@ -216,8 +234,17 @@ Username Text Input Renders!
 Current Value: 
 Password Text Input Renders!
 Current Value: 
+Login Scene Did Mount!
+Input username changed to : me@email.com -- setting state and re-rendering
+Login Scene Renders!
+Username Text Input Renders!
+Current Value: me@email.com
 ```
+
+One thing to note in the output above is that when we re-rendered our login scene 
+due to updating the "username" state, only the username text input was re-rendered 
+while any unchanged components are ignored.
 
 Now this is missing a few key pieces such as updating the state using 
 `my setState` (or even better, using the store to manage the state of the inputs). 
-Hopefully it starts to paint a picture of how the package operates.
+Hopefully it starts to paint a picture of how the package operates. 

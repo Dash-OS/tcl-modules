@@ -13,7 +13,7 @@ proc ::react::dispatch { event args } {
   if { [info exists ::react::reducer_callbacks] && [dict exists $::react::reducer_callbacks onEvent] } {
     {*}[dict get $::react::reducer_callbacks onEvent] $event {*}$args
     return 1
-  } else { puts no ; return 0 }
+  } else { return 0 }
 }
 
 proc ::react::reduce args {
@@ -67,7 +67,6 @@ Component create ::react::reducer {
   # Receives Events, translates them to state which will in-turn be proliferated
   # to our children.
   method componentWillMount {} {
-    puts mount
     if { [info exists ::react::default_store] } {
       set STORE $::react::default_store
     } else {
@@ -84,7 +83,6 @@ Component create ::react::reducer {
   }
   
   method creator {} {
-    puts creator
     return [list namespace inscope [ \
       [namespace parent [namespace qualifiers [self]]] @namespace] \
     my]
@@ -94,7 +92,6 @@ Component create ::react::reducer {
   # setting the state based on the values we receive.  Those can then be sent into 
   # our UI as-needed based on the context.
   method event {event args} {
-    puts event
     set new_store $STORE
     dict for { path script } $::react::reducers {
       if { [dict exists $new_store {*}$path] } {
