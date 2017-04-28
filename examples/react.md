@@ -207,6 +207,16 @@ Component create TextInput {
     value      {}
   }
   
+  method setValue { value } {
+    # Just as an example of how we would set the value
+    if { [dict exists $PROPS onChange] } {
+      # This will call the onInputChanged method in our parent, resulting
+      # in the state changing and re-rendering this component with the changed 
+      # value (thus updating our UI).
+      {*}[dict get $PROPS onChange] $value
+    }
+  }
+  
   method render {} {
     puts "[dict get $PROPS label] Text Input Renders!"
     puts "Current Value: [dict get $PROPS value]"
