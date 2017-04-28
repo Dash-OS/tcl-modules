@@ -68,7 +68,7 @@ Note that we are only operating on the "router" key with this reducer.
 We may have other reducers operating on different keys.
 
 > **Important:** This should be the ONLY way that data travels into our components.  We 
-> should NEVER use global variables or any other method as it may break the 
+> should NEVER use global variables or any other method as it may break the rendering lifecycles.
 
 ```tcl
 # Reducers are how we manage our state.  We create a reducer easily:
@@ -76,13 +76,10 @@ react default_store router [dict create \
   scene home
 ]
 
-
-# rendering lifecycles.
 react reduce router { store event data } {
   switch -- $event {
     SET_SCENE {
-      # When SET_SCENE is dispatched, set the scene to the given
-      # value.
+      # When SET_SCENE is dispatched, set the scene to the given value.
       puts "Setting Scene to: $data"
       dict set store scene $data
     }
@@ -199,3 +196,28 @@ react render App
 
 react dispatch SET_SCENE login
 ```
+
+The results of running the above is:
+
+```bash
+App Renders!
+Store | router {scene home}
+mount
+Home Scene Renders!
+event
+Setting Scene to: login
+creator
+App Renders!
+Store | router {scene login}
+Home Scene is being removed!
+Login Scene will Mount Shortly!
+Login Scene Renders!
+Username Text Input Renders!
+Current Value: 
+Password Text Input Renders!
+Current Value: 
+```
+
+Now this is missing a few key pieces such as updating the state using 
+`my setState` (or even better, using the store to manage the state of the inputs). 
+Hopefully it starts to paint a picture of how the package operates.
