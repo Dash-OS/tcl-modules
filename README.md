@@ -31,6 +31,22 @@ Once you have done this you should be able to `package require` them.
 
 > **Tip:** You can add to the tcl module directories list by calling `[::tcl::tm::path add $dir]`
 
+### Auto Include
+
+A simple "include.tcl" is included within this repo.  It simply adds the directory 
+that it is located within to the tm package path.  So if you run tclsh you can 
+do something like:
+
+```tcl
+# Source the include file
+source /path/to/tm/include.tcl
+
+# Include any tcl modules
+package require react
+
+# ... your script ... #
+```
+
 ## Package Summaries
 
 I will try to provide a basic idea of some of the modules as time goes on.
