@@ -55,6 +55,7 @@ I will try to provide a basic idea of some of the modules as time goes on.
 
  - [callback](#callback-command-args)
  - [cmdlist](#cmdlist-args)
+ - [cswitch](#cswitch-flags----command-script)
  - [valias](#valias-source-alias)
  - [extend](#extend-namespace-body)
  - [run](#run-scoped-vars-level-script)
