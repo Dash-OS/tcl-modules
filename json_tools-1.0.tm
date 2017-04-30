@@ -61,6 +61,7 @@ proc ::json::unset     args { ::tailcall ::rl_json::json unset     {*}$args }
 proc ::json::extract   args { ::tailcall ::rl_json::json extract   {*}$args }
 proc ::json::foreach   args { ::tailcall ::rl_json::json foreach   {*}$args }
 proc ::json::lmap      args { ::tailcall ::rl_json::json lmap      {*}$args }
+proc ::json::pretty    args { ::tailcall ::rl_json::json pretty    {*}$args }
 
 # Extends the native rl_json exists to handle the quirk it has in handling
 # of an empty string ({}).  Since a JSON object is valid when it is an empty

@@ -171,7 +171,7 @@ foo two newvalue
 ---
 
 
-### `cswitch` ?...flags? ?--? { ...?expr script? }*
+### `cswitch` ?...flags? ?--? { ...?expr script? }
 
 cswitch is a kind of `[switch]` `[if]` hybrid.  It's last value should be a 
 dict.  It evaluates each *expr* (in order given, in the callers context) as an 
@@ -468,7 +468,7 @@ start with a lower-case [a-z] character.
 
 package require ensembled
 
-namespace eval foo ensembled
+namespace eval foo { ensembled }
 
 proc foo::call args { puts $args }
 
