@@ -284,7 +284,18 @@ proc ::json::typed {value args} {
   ::if { "-map" in $args } { ::return "string [new string $value]" }
   ::return [new string $value] 
 }
-  
+
+# Modifies an object. 
+# set j {{
+#  "foo": "bar",
+#  "baz": [ "foo", "bar", "qux" ]
+# }}
+# json object lappend j baz one
+# % {{
+# %   "foo": "bar",
+# %   "baz": [ "foo", "bar", "qux", "one" ]
+# % }}
+json object lappend j baz one
 proc ::json::object { what args } {
   ::set r {{}}
   ::switch -- $what {
