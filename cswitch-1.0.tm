@@ -11,6 +11,7 @@ proc cswitch {args} {
   if { [string first \# $arg] ne -1 } {
     set arg [ regsub -all {#.*?\n} $arg \n]
   }
+  
   dict for { check body } $arg {
     incr i ; set passes $next
     if { ! $passes } { 
@@ -45,5 +46,6 @@ proc cswitch {args} {
       if { "-all" ni $flags } { break }
     }
   }
+  
   return $results
 }

@@ -59,7 +59,6 @@ I will try to provide a basic idea of some of the modules as time goes on.
  - [valias](#valias-source-alias)
  - [extend](#extend-namespace-body)
  - [run](#run-scoped-vars-level-script)
- - [time parse](#time-parse-args)
  - [pubsub](#pubsub-command-args)
  - [ensembled](#ensembled)
 
@@ -194,6 +193,10 @@ value is the result of running *script*.
 > a response when breaking by using `[return -code break $result]`.  This will add the given result to 
 > the results (if the `-get` flag is given) then stop evaluation.
 
+> **Tip:** Just like `[switch]` you can use `-` after a command to defer to the 
+> next items body when a match occurs.  When this occurs and `-all` is specified, 
+> the children will not be evaluated so the given body will only be executed once.
+
 <details><summary><b>Simple Example</b></summary><p>
 
 ```tcl
@@ -302,11 +305,7 @@ puts [string cat one two]
 
 ---
 
-### `time parse` ?...args?
 
-`[time parse]` is a convenience package 
-
----
 
 ### `run ?-scoped? ?-with [dict create]? ?-vars [list]? ?-level #? -- script` 
 
