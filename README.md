@@ -171,11 +171,19 @@ foo two newvalue
 ---
 
 
-### `cswitch` ?...flags? ?--? ...?command script?*
+### `cswitch` ?...flags? ?--? ...?expr script?*
 
-cswitch is a simple variation of the standard `[switch]` command which tests 
-against commands rather than simple values.  Additionally, it allows us to 
-run all matching results rather than the first match with `-all` flag when desired.
+cswitch is a kind of `[switch]` `[if]` hybrid.  It's last value should be a 
+dict.  It evaluates each key (in order given, in the callers context) as an 
+expression.
+
+By default, it will execute the first matching key's script (also in the callers 
+context).  If the `-all` flag is given `[cswitch -all]`, every expression will be 
+evaluated and executed when true.
+
+Finally, if the `-get` flag is provided, the result of command will be a dict 
+where the keys are the `[lindex]` of the passing *expr* *script* pair and the 
+value is the result of running *script*. 
 
 | Flag Name     |  Description   |
 | ------------- | -------------- |
