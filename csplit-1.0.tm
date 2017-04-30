@@ -1,3 +1,5 @@
+# Taken from the cmdSplit / commands wiki page
+# http://wiki.tcl.tk/21701
 namespace eval ::csplit {}
 
 proc ::csplit::commands args {
