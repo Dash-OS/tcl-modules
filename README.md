@@ -190,22 +190,25 @@ run all matching results rather than the first match with `-all` flag when desir
 ```tcl
 package require cswitch
 
-set test true
+set foo 1
+set bar 0
 
-set result [ cswitch -all -get -- {
-  { ! [info exists test] } {
+set result [ cswitch  -all -get -- {
+  { ! [info exists foo] || ! [info exists bar] } {
     puts "Doesnt Exist, stop!"
     break
   }
-  { [string is false -strict $test] } {
+  # Comments are allowed, however they slow execution a bit!
+  { [string is false -strict $foo] } -
+  0 {
     puts "False! No need to continue"
     return -code break foo
   }
-  { [string is true -strict $test] } {
+  { [string is true -strict $foo] } {
     puts true!
     set v h
   }
-  { [info exists test] && [string is true -strict $test] } {
+  { [string is true -strict $foo] && [string is false -strict $bar] } {
     puts "whoop whoop"
   }
 }]
@@ -213,7 +216,7 @@ set result [ cswitch -all -get -- {
 # true!
 # whoop whoop
 
-puts "Result: $result" ; # Result: 2 h 3 {}
+puts "Result: $result" ; # Result: 3 h 4 {}
 ```
 
 </p></details>
