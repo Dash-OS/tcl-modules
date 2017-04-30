@@ -192,7 +192,7 @@ value is the result of running *script*.
 
 > **Tip:** You can use `[break]` and `[continue]` to control execution.  Additionally, you can return 
 > a response when breaking by using `[return -code break $result]`.  This will add the given result to 
-> the results (if the `-get` flag is given) then stop evaluation of commands.
+> the results (if the `-get` flag is given) then stop evaluation.
 
 <details><summary><b>Simple Example</b></summary><p>
 
