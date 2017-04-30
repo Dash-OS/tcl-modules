@@ -171,10 +171,10 @@ foo two newvalue
 ---
 
 
-### `cswitch` ?...flags? ?--? ...?expr script?*
+### `cswitch` ?...flags? ?--? { ...?expr script? }*
 
 cswitch is a kind of `[switch]` `[if]` hybrid.  It's last value should be a 
-dict.  It evaluates each key (in order given, in the callers context) as an 
+dict.  It evaluates each *expr* (in order given, in the callers context) as an 
 expression.
 
 By default, it will execute the first matching key's script (also in the callers 
