@@ -1,10 +1,10 @@
 package require ensembled
 
-namespace eval varx ensembled
+namespace eval ::varx { ensembled }
 
-proc varx::variables args { ::foreach var $args { ::uplevel 1 [::list variable $var] } }
+proc ::varx::variables args { ::foreach var $args { ::uplevel 1 [::list variable $var] } }
 
-proc varx::define args { 
+proc ::varx::define args { 
   ::foreach var $args {
     ::upvar 1 $var v
     ::if { ! [::info exists v] } { ::set v {} }
@@ -12,7 +12,7 @@ proc varx::define args {
   ::return $args
 }
 
-proc varx::sets args {
+proc ::varx::sets args {
   ::foreach {var val} $args {
     ::upvar 1 $var ref 
     ::set ref $val
@@ -20,7 +20,7 @@ proc varx::sets args {
   ::return $args
 }
 
-proc varx::switch args {
+proc ::varx::switch args {
   ::set nocase 0; ::set next 0; ::set response {}
   
   ::while {$args ne {}} {
@@ -65,15 +65,15 @@ proc varx::switch args {
 #   puts "$name | $prev --> $new" ; # v | 1 --> 2
 # }
 # set v 1
-# varx trace v myproc
+# ::varx trace v myproc
 # set v 2
-proc varx::trace { var callback {value {}} } {
+proc ::varx::trace { var callback {value {}} } {
   ::upvar 1 $var current
   ::if {![::info exists current]} {::set current $value}
   ::uplevel 1 [::list ::trace add variable $var write [ ::namespace code [::list traceback $callback $current] ]]
 }
 
-proc varx::traceback { callback prev var args } {
+proc ::varx::traceback { callback prev var args } {
   ::upvar 1 $var value
   ::uplevel 1 [::list ::trace remove variable $var write [ ::namespace code [::list traceback $callback $prev  ] ]]
   ::uplevel 1 [::list ::trace add    variable $var write [ ::namespace code [::list traceback $callback $value ] ]]
@@ -92,7 +92,7 @@ proc varx::traceback { callback prev var args } {
   ::uplevel #0 [::list try [list $callback {*}$args]]
 }
 
-proc varx::untrace { var } {
+proc ::varx::untrace { var } {
   ::upvar 1 $var $var
   ::set info [::trace info variable $var]
   ::if { $info eq {} } { ::return }
@@ -100,7 +100,7 @@ proc varx::untrace { var } {
 }
 
 
-proc varx::pipe args {
+proc ::varx::pipe args {
   ::set cmds [::split $args |]
   ::foreach cmd $cmds {
     ::set cmd [::string trim    $cmd]
@@ -123,34 +123,52 @@ proc varx::pipe args {
   }
 }
 
-proc varx::alias { var alias } { ::uplevel 1 [::list ::upvar 0 $var $alias] }
+proc ::varx::alias { var alias } { ::uplevel 1 [::list ::upvar 0 $var $alias] }
 
-proc varx::empty { varName args } {
+proc ::varx::empty { varName args } {
   ::upvar 1 $varName var
   ::tailcall ::if [::expr {![::info exists var] || $var eq {}}] {*}$args
 }
 
-proc varx::null {varName args} {
+proc ::varx::null {varName args} {
   ::upvar 1 $varName var
   ::tailcall ::if [::expr {![::info exists var]}] {*}$args
 }
 
-# varx true 0 {
+# ::varx true 0 {
 #   puts "is false"
 # } else {
 #   puts "not false"
 # }
-proc varx::false {varName args} {
+proc ::varx::false {varName args} {
   ::upvar 1 $varName var
   ::tailcall ::if [::expr {[::info exists var] && [::string is false -strict $var]}] {*}$args
 }
 
-# varx true 1 {
+# ::varx true 1 {
 #   puts "is true"
 # } else {
 #   puts "not true"
 # }
-proc varx::true {varName args} {
+proc ::varx::true {varName args} {
   ::upvar 1 $varName var
   ::tailcall ::if [::expr {[::info exists var] && [::string is true -strict $var]}] {*}$args
 }
+
+proc ::varx::is? {varName check} {
+  ::upvar 1 $varName $varName
+  ::switch -- $check {
+    true  { return [::expr { [::info exists $varName] && [::string is true -strict [::set $varName]]}] }
+    false { return [::expr { [::info exists $varName] && [::string is false -strict [::set $varName]]}] }
+    null  { return [::info exists $varName] }
+    empty { return [::expr { ! [::info exists $varName] || [::set $varName] eq {} }] }
+  }
+}
+
+proc ::varx::is {varName checks args} {
+  ::upvar 1 $varName $varName
+  
+}
+
+
+

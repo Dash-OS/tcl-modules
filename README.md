@@ -169,6 +169,57 @@ foo two newvalue
 
 ---
 
+
+### `cswitch` ?...flags? ?--? ...?command script?*
+
+cswitch is a simple variation of the standard `[switch]` command which tests 
+against commands rather than simple values.  Additionally, it allows us to 
+run all matching results rather than the first match with `-all` flag when desired.
+
+| Flag Name     |  Description   |
+| ------------- | -------------- |
+| -all          | Run and execute for all matches rather than only the first. |
+| -get          | Get the results as a dict where the key is the index of the check and the value is the result. |
+
+> **Tip:** You can use `[break]` and `[continue]` to control execution.  Additionally, you can return 
+> a response when breaking by using `[return -code break $result]`.  This will add the given result to 
+> the results (if the `-get` flag is given) then stop evaluation of commands.
+
+<details><summary><b>Simple Example</b></summary><p>
+
+```tcl
+package require cswitch
+
+set test true
+
+set result [ cswitch -all -get -- {
+  { ! [info exists test] } {
+    puts "Doesnt Exist, stop!"
+    break
+  }
+  { [string is false -strict $test] } {
+    puts "False! No need to continue"
+    return -code break foo
+  }
+  { [string is true -strict $test] } {
+    puts true!
+    set v h
+  }
+  { [info exists test] && [string is true -strict $test] } {
+    puts "whoop whoop"
+  }
+}]
+
+# true!
+# whoop whoop
+
+puts "Result: $result" ; # Result: 2 h 3 {}
+```
+
+</p></details>
+
+---
+
 ### `valias` *source* *alias*
 
 Another extremely simple one, valias is used to alias a variable to another 
