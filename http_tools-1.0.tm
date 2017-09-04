@@ -1,4 +1,5 @@
 package require http
+
 if { ! [catch { package require tls }] } {
   proc ::http::_ssl_configure args {
     set opts [lrange $args 0 end-2]
@@ -45,7 +46,7 @@ proc ::wget { url dest {retry 1} } {
     set token [::http::geturl $url -channel $chan -binary 1]
     if { [::http::ncode $token] != "200" } {
       ::http::cleanup $token
-      if { $retry > 0 } { 
+      if { $retry > 0 } {
         after 500
         tailcall ::wget $url $dest [incr retry -1]
       }
@@ -55,7 +56,7 @@ proc ::wget { url dest {retry 1} } {
     chan close $chan
   } on error {result} {
     if { [info exists token] } {
-      ::http::cleanup $token 
+      ::http::cleanup $token
     }
     if { $retry > 0 } {
       after 500
@@ -73,7 +74,7 @@ proc ::http::parse_token { token } {
       data   [::http::data   $token]
     ]
   } on error {result options} {
-    ::onError $result $options "While Parsing a Token"
+    catch { ::onError $result $options "While Parsing a Token" }
   } finally { ::http::cleanup $token }
   return $response
 }
