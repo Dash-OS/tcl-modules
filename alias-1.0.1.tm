@@ -1,4 +1,4 @@
-# http://wiki.tcl.tk/38650
+# Reference: http://wiki.tcl.tk/38650 
 proc alias {alias target} {
   set fulltarget [uplevel [list namespace which $target]]
   if {$fulltarget eq {}} { return -code error [list {no such command} $target] }
@@ -12,6 +12,6 @@ proc alias {alias target} {
   namespace eval [namespace qualifiers $fulltarget] [list namespace export {*}$save]
   if {$code} { return -options $copts $cres }
   uplevel [list rename ${tmpns}::[namespace tail $target] $alias]
-  namespace delete $tmpns 
+  namespace delete $tmpns
   tailcall namespace which $alias
 }

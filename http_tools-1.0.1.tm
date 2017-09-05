@@ -38,6 +38,8 @@ proc ::http::_followRedirects {url args} {
   return $url
 }
 
+# taken from undocumented tcllib module
+# with some modifications.
 proc ::wget { url dest {retry 1} } {
   try {
     set chan [open $dest w]
