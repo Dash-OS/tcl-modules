@@ -15,6 +15,8 @@
 #		if any matching subscriptions should be triggered.
 #
 ##	State Set Commands
+package require json_tools
+package require typeof
 
 ::oo::define ::state::Container method set data {
 	if { $KEY eq "@@S" || [dict exists $data $KEY] } {
@@ -208,7 +210,7 @@
 	set value {}
 	if { $KEY eq "@@S" } {
 		set args [lassign $args items]
-		if { [info command entries::$KEY] ne {} } {
+		if { [info commands entries::$KEY] ne {} } {
 			set value [entries::$KEY get $op $items {*}$args]
 			dict unset value $KEY
 		}
@@ -296,7 +298,6 @@
 #   -meta    [list ] \
 #   -op      snapshot \
 #   -entries
-
 ::oo::define ::state::Container method serialize args {
   set json [json start]
   $json map_open
@@ -317,13 +318,28 @@
 ::oo::define ::state::Container method serialize_meta { json values } {
   $json map_key meta map_open
     $json map_key state_id string [namespace tail [self]]
-    if { $values eq "all" } { set values [list KEY READY ENTRIES REQUIRED CONFIG SCHEMA SUBSCRIBED MIDDLEWARES ITEMS] }
-    #
+    if {$values eq "all"} {
+      set values [list KEY READY ENTRIES REQUIRED CONFIG SCHEMA SUBSCRIBED MIDDLEWARES ITEMS]
+    }
     foreach value $values {
-      set val [json typed [set [string toupper $value]]]
-      ::utils::flog "Serialize $value | $val"
-
-      $json map_key [string tolower $value] number $val
+      set val [set [string toupper $value]]
+      switch -- [typeof $val] {
+        boolean {
+          $json map_key [string tolower $value] bool $val
+        }
+        number {
+          $json map_key [string tolower $value] number $val
+        }
+        list {
+          $json map_key [string tolower $value] number [json typed $val]
+        }
+        dict {
+          $json map_key [string tolower $value] number [json typed $val]
+        }
+        string - default {
+          $json map_key [string tolower $value] string $val
+        }
+      }
     }
   $json map_close
 }
@@ -411,7 +427,6 @@
   }
 }
 
-
 ::oo::define ::state::Container method query query {
   if { $ENTRIES eq {} || $KEY eq "@@S" } { return }
 	set results [list]
@@ -439,7 +454,6 @@
   } elseif { [info commands items::[dict get $filter key]] ne {} } {
     return [items::[dict get $filter key] filter $filter $entries ]
   }
-
 }
 
 ::oo::define ::state::Item method filter { filter entries args } {

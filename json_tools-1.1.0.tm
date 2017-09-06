@@ -6,6 +6,9 @@ package require rl_json
 # way to generate dynamic json
 catch { package require yajltcl }
 
+# require typeof
+package require typeof
+
 # Taken from the json tcllib package for validation
 namespace eval ::json {
   # Regular expression for tokenizing a JSON text (cf. http://json.org/)
@@ -243,17 +246,20 @@ proc ::json::file2dict { file } {
 # This is a key ingredient to allowing many of the other functions to work.
 proc ::json::typed {value args} {
   # puts "typed $value"
-  ::regexp {^value is a (.*?) with a refcount} \
-    [::tcl::unsupported::representation $value] -> type
+  set type [typeof $value -exact]
   # puts "type $type"
-  ::if { "-map" ni $args && ! [ ::catch { type $value } err ] } { ::return $value }
+  ::if { "-map" ni $args && ! [ ::catch { type $value } err ] } {
+    ::return $value
+  }
   ::switch -glob -- $type {
-    dict   {
+    dict {
       ::set obj {}
       ::dict for { k v } $value {
-        ::lappend obj $k [ typed $v -map ]
+        ::lappend obj $k [typed $v -map]
       }
-      ::if { "-map" in $args } { ::return "object $obj" }
+      ::if { "-map" in $args } {
+        ::return [list object $obj]
+      }
       ::return [new object {*}$obj]
     }
     *array - list {
@@ -267,32 +273,46 @@ proc ::json::typed {value args} {
         ::incr i
         ::lappend arr $v
       }
-      ::if { "-map" in $args } { ::return "array $arr" }
+      ::if { "-map" in $args } {
+        ::return [list array $arr]
+      }
       ::return [new array {*}$arr]
     }
-    int - double  {
-      ::if { "-map" in $args } { ::return "number [::expr {$value}]" }
+    int - double {
+      ::if { "-map" in $args } {
+        ::return [list number [::expr {$value}]]
+      }
       ::return [::expr {$value}]
     }
     boolean* {
-      ::if { "-map" in $args } { ::return "boolean [::expr {bool($value)}]" }
+      ::if { "-map" in $args } {
+        ::return [list boolean [::expr {bool($value)}]]
+      }
       ::return [::expr {bool($value)}] }
     *string - default {
       ::if {$value eq "null"} {
         ::return $value
       } elseif {[::string is entier -strict $value]} {
-        ::if { "-map" in $args } { ::return "number [::expr {$value}]" }
+        ::if { "-map" in $args } {
+          ::return [list number [::expr {$value}]]
+        }
         ::return [::expr {$value}]
-      } elseif {[::string is double  -strict $value]} {
-        ::if { "-map" in $args } { ::return "number [::expr {$value}]" }
+      } elseif {[::string is double -strict $value]} {
+        ::if { "-map" in $args } {
+          ::return [list number [::expr {$value}]]
+        }
         ::return [::expr {$value}]
       } elseif {[::string is boolean -strict $value]} {
-        ::if { "-map" in $args } { ::return "boolean [::expr {bool($value)}]" }
+        ::if { "-map" in $args } {
+          ::return [list boolean [::expr {bool($value)}]]
+        }
         ::return [::expr {bool($value)}]
       }
     }
   }
-  ::if { "-map" in $args } { ::return "string [new string $value]" }
+  ::if { "-map" in $args } {
+    ::return [list string [new string $value]]
+  }
   ::return [new string $value]
 }
 

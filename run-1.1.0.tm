@@ -28,13 +28,13 @@ proc ::run { args } {
     if { [string equal [string index $arg 0] -] } {
       if { [info exists o] } { dict set opts $o 1 }
       set o [string range $arg 1 end]
-    } else { 
-      if { [info exists o] } { 
-        dict set opts $o $arg 
+    } else {
+      if { [info exists o] } {
+        dict set opts $o $arg
         unset o
-      } else { 
+      } else {
         lappend args $arg
-        break 
+        break
       }
     }
   }
@@ -45,10 +45,10 @@ proc ::run { args } {
     set adict {}
   }
   if { [dict get $opts scoped] } {
-    tailcall ::run::scoped $opts $body 
+    tailcall ::run::scoped $opts $body
   } elseif { [dict get $opts level] != -1 } {
     set level [dict get $opts level]
-    if { ! [string equal [string index $level 0] \#] } { 
+    if { ! [string equal [string index $level 0] \#] } {
       set level [expr { $level + 1 }]
     }
     tailcall ::apply [list \
@@ -67,14 +67,14 @@ proc ::run::scoped { opts {body {}} } {
   if { $body eq {} } { set body $opts ; set opts [set ::run::default] }
   set level [dict get $opts level]
   if { ! [string equal [string index $level 0] \#] } {
-    if { $level == -1 } { 
+    if { $level == -1 } {
       set level 1
     } else { set level [expr { $level + 1 }] }
   }
   if { [dict exists $opts vars] } {
     set vars [dict get $opts vars]
   } else {
-    set vars [uplevel $level {info vars}] 
+    set vars [uplevel $level {info vars}]
   }
   if { [dict exists $opts with] && [dict get $opts with] ne {} } {
     lappend inject [list set __v [dict get $opts with]] {
@@ -91,4 +91,3 @@ proc ::run::scoped { opts {body {}} } {
     foreach ___v ${__v}[unset __v] { %s }; catch { unset ___v } ; %s ; %s
   } $cmd [join $inject \;] $body]
 }
-

@@ -1,8 +1,15 @@
-source [file normalize [file join [file dirname [info script]] parse_attribute.tcl]]
+
+source [file normalize \
+  [file join \
+    [file dirname [info script]] parse_attribute.tcl \
+  ]
+]
 
 proc ::state::parse::SetArgs {} {
   uplevel 1 {
-    set setters {}; set script {}; set scriptArgs {}
+    set setters {}
+    set script {}
+    set scriptArgs {}
     switch -- [llength $args] {
       1 { lassign $args query }
       2 { lassign $args setters query }
@@ -34,13 +41,13 @@ variable ::state::parse::Keywords {
   every         { args 1      }
   in            { args 1      }
   at            { args 1      }
-}		
+}
 
 variable ::state::parse::Keys [dict keys $::state::parse::Keywords]
 
 # Parse the data structure and normalize it into a valid
 # tcl dictionary.  This step allows us to handle situations
-# where we may have attributes that define more than a 
+# where we may have attributes that define more than a
 # key/value pair.
 proc ::state::parse::Format args {
   if {[llength $args] == 1} { set args [lindex $args 0] }
@@ -60,9 +67,13 @@ proc ::state::parse::Format args {
     if {$setKeyword} {
       set keyword $item
       set keywordArgs [dict get $::state::parse::Keywords $item args]
-      if {[llength $keywordArgs] > 1} { set multi 1 } else { set multi 0 }
       set i [lindex $keywordArgs end]
       set setKeyword 0
+      if {[llength $keywordArgs] > 1} {
+        set multi 1
+      } else {
+        set multi 0
+      }
       continue
     }
     dict lappend tempDict $keyword $item
@@ -92,8 +103,8 @@ proc ::state::parse::subscription {localID args} {
 proc ::state::parse::task {localID args} {
   SetArgs
   return [dict create \
-    script          [string trim $script] \
-    task            [Evaluate $localID [Format $query] $setters]
+    script [string trim $script] \
+    task   [Evaluate $localID [Format $query] $setters]
   ]
 }
 

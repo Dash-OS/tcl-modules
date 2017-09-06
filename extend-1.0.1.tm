@@ -1,7 +1,7 @@
 # Contributed by PYK http://wiki.tcl.tk/28961?redir=28962
 # http://wiki.tcl.tk/15566
 proc extend {ens script} {
-  uplevel 1 [string map [list %ens [list $ens]] {
+  set s {
     namespace ensemble configure %ens -unknown [list ::apply [list {ens cmd args} {
       ::if {$cmd in [::namespace eval ::${ens} {::info commands}]} {
         ::set map [::namespace ensemble configure $ens -map]
@@ -11,5 +11,6 @@ proc extend {ens script} {
       ::return {} ;# back to namespace ensemble dispatch
                   ;# which will error appropriately if the cmd doesn't exist
     } [namespace current]]]
-  }]\;[list namespace eval $ens $script]
+  }
+  uplevel 1 [string map [list %ens [list $ens]] $s]\;[list namespace eval $ens $script]
 }

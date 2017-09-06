@@ -1,5 +1,5 @@
 package require ensembled
-namespace eval redelay ensembled
+namespace eval redelay {ensembled}
 
 ::oo::class create ::redelay::mixin {
   constructor args {
@@ -10,7 +10,7 @@ namespace eval redelay ensembled
     }
   }
   method redelay { {arg {}} } {
-    if { $arg eq "reset" } { 
+    if { $arg eq "reset" } {
       return [ my __redelay_reset ]
     } else {
       return [ my __redelay_tick {*}$arg ]
@@ -49,7 +49,7 @@ proc ::redelay::redelay { { arg {} } } {
 proc ::redelay::new { {max {}} } {
   set controller [mixin new]
   if { $max ne {} } {
-    $controller redelay_max $max  
+    $controller redelay_max $max
   }
   return $controller
 }

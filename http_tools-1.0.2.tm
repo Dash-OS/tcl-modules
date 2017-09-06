@@ -22,7 +22,7 @@ proc ::http::_followRedirects {url args} {
     if { $ncode eq "404" } {
       throw error "URL Not found"
     }
-    switch -glob $ncode {
+    switch -glob -- $ncode {
       30[1237] {### redirect - see below ###}
       default  {::http::cleanup $token ; return $url}
     }

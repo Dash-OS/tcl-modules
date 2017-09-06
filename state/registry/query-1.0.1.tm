@@ -1,6 +1,7 @@
 namespace eval ::state {}
 namespace eval ::state::register {}
 namespace eval ::state::register::registry {}
+
 variable ::state::register::registry::registry  [dict create]
 variable ::state::register::registry::modifiers [list]
 variable ::state::register::registry::active    [list]
@@ -10,29 +11,33 @@ variable ::state::register::registry::queries   [dict create]
 # so we can avoid shimmering at evaluation time.
 proc ::state::register::query { query schema } {
 	if { $query in [dict keys $registry::queries] } {
-		throw error "\[tcl_query_parts\] - $query is already registered.  You may not register a query twice at this time."	
+		throw error "\[tcl_query_parts\] - $query is already registered.  You may not register a query twice at this time."
 	}
 	dict set registry::queries $query $query
 	dict for { op value } $schema {
 		switch -- $op {
-			alias    { 
-				set aliases [list {*}$value] 
+			alias {
+				set aliases [list {*}$value]
 				dict set registry::registry $query $op $aliases
 				foreach alias $aliases { dict set registry::queries $alias $query }
 			}
-			evaluate { dict set registry::registry $query $op [string trim $value] }
-			active   {
+			evaluate {
+        dict set registry::registry $query $op [string trim $value]
+      }
+			active {
 				dict set registry::registry $query $op $value
 				if { [string is true -strict $value] } {
 					set isActive 1
 					lappend registry::active $query
 				}
 			}
-			default  { dict set registry::registry $query $op $value }
+			default {
+        dict set registry::registry $query $op $value
+      }
 		}
 	}
 	if { [info exists isActive] && [dict exists $registry::registry $query alias] } {
-		lappend registry::active {*}[dict get $registry::registry $query alias]	
+		lappend registry::active {*}[dict get $registry::registry $query alias]
 	}
 }
 
@@ -115,17 +120,17 @@ proc ::state::register_default_queries {} {
 	::state::register::query <= [dict create \
 		alias [list "less equal" "le"] \
 		evaluate { expr { $value <= $params } }
-	]   
+	]
 	::state::register::query >_ [dict create \
 		active 1 \
 		alias [list "rises above"] \
 		evaluate { expr { $value > $params && $prev <= $params } }
-	] 
+	]
 	::state::register::query _< [dict create \
 		active 1 \
 		alias [list "falls below"] \
 		evaluate { expr { $value < $params && $prev >= $params } }
-	]   
+	]
 	::state::register::query % [dict create \
 		alias [list "divisible by"] \
 		evaluate { expr { ( $value % $params ) == 0 } }
@@ -186,14 +191,14 @@ proc ::state::register_default_queries {} {
 	::state::register::query isType [dict create \
 	  evaluate { string is $params -strict $value }
 	]
-	
+
 	# Register Default Modifiers
 	::state::register::modifier set {}
 	::state::register::modifier removed {}
 	::state::register::modifier is {}
 	::state::register::modifier reverse {
 		on before-eval
-		evaluate { 
+		evaluate {
 			set __params $value
 			set __value  $params
 			set params ${__params}
@@ -207,7 +212,7 @@ proc ::state::register_default_queries {} {
 		evaluate { set value $prev }
 	}
 	::state::register::modifier becomes {
-		on after-eval 
+		on after-eval
 		evaluate {
 			if { [string is true -strict $result] } {
 				set value $prev
@@ -216,7 +221,7 @@ proc ::state::register_default_queries {} {
 		}
 	}
 	::state::register::modifier not {
-		on after-eval 
+		on after-eval
 		evaluate { set result [ string is false -strict $result ] }
 	}
 
