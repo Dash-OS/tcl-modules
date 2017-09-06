@@ -245,20 +245,17 @@ proc ::json::file2dict { file } {
 #
 # This is a key ingredient to allowing many of the other functions to work.
 proc ::json::typed {value args} {
-  # puts "typed $value"
-  set type [typeof $value -exact]
-  # puts "type $type"
   ::if { "-map" ni $args && ! [ ::catch { type $value } err ] } {
     ::return $value
   }
-  ::switch -glob -- $type {
+  ::switch -glob -- [::typeof $value -exact] {
     dict {
       ::set obj {}
       ::dict for { k v } $value {
         ::lappend obj $k [typed $v -map]
       }
       ::if { "-map" in $args } {
-        ::return [list object $obj]
+        ::return [::list object $obj]
       }
       ::return [new object {*}$obj]
     }
@@ -274,13 +271,13 @@ proc ::json::typed {value args} {
         ::lappend arr $v
       }
       ::if { "-map" in $args } {
-        ::return [list array $arr]
+        ::return [::list array $arr]
       }
       ::return [new array {*}$arr]
     }
     int - double {
       ::if { "-map" in $args } {
-        ::return [list number [::expr {$value}]]
+        ::return [::list number [::expr {$value}]]
       }
       ::return [::expr {$value}]
     }
@@ -294,24 +291,24 @@ proc ::json::typed {value args} {
         ::return $value
       } elseif {[::string is entier -strict $value]} {
         ::if { "-map" in $args } {
-          ::return [list number [::expr {$value}]]
+          ::return [::list number [::expr {$value}]]
         }
         ::return [::expr {$value}]
       } elseif {[::string is double -strict $value]} {
         ::if { "-map" in $args } {
-          ::return [list number [::expr {$value}]]
+          ::return [::list number [::expr {$value}]]
         }
         ::return [::expr {$value}]
       } elseif {[::string is boolean -strict $value]} {
         ::if { "-map" in $args } {
-          ::return [list boolean [::expr {bool($value)}]]
+          ::return [::list boolean [::expr {bool($value)}]]
         }
         ::return [::expr {bool($value)}]
       }
     }
   }
   ::if { "-map" in $args } {
-    ::return [list string [new string $value]]
+    ::return [::list string [new string $value]]
   }
   ::return [new string $value]
 }
