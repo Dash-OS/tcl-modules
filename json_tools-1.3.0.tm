@@ -43,7 +43,11 @@ namespace eval ::json {
   ::variable whiteSpaceRE {[[:space:]]*}
   # Regular expression for validating a JSON text
   ::variable validJsonRE "^(?:${whiteSpaceRE}(?:$tokenREv))*${whiteSpaceRE}$"
+  # parser will store a yajl object globally for
+  # parsing json values into yajl maps.
   #
+  # Only created when first called [json parse]
+  # ::variable parser {}
   ::namespace ensemble create -unknown [::list ::json::unknown]
   ::namespace export {[a-z]*}
 }
@@ -88,7 +92,7 @@ proc ::json::exists {j args} {
       ::return 0
     }
     default {
-      try {
+      ::try {
         ::tailcall ::rl_json::json exists $j {*}$args
       } on error {result} {
         ::return 0
@@ -180,7 +184,9 @@ proc ::json::pull {vname args} {
 proc ::json::merge {json args} {
   ::if { $json eq {} } { ::set json {{}} }
   ::foreach arg $args {
-    ::if { ! [::json validate $arg] } { continue }
+    ::if { ! [::json validate $arg] } {
+      continue
+    }
     ::json foreach { k v } $arg {
       ::json set json $k $v
     }
@@ -264,7 +270,7 @@ proc ::json::modify { vname args } {
     ::set args [::lindex $args 0]
   }
   ::dict for { k v } $args {
-    ::json set rj $k [typed $v]
+    ::json set rj $k [::json typed $v]
   }
   ::return $rj
 }
@@ -289,14 +295,15 @@ proc ::json::typed {value args} {
   ::if { "-map" ni $args && ! [ ::catch {::json type $value} err ] } {
     ::return $value
   }
-  ::switch -glob -- [::typeof $value -exact] {
+  ::set type [::typeof $value -exact]
+  ::switch -glob -- $type {
     dict {
       ::set obj {}
       ::dict for { k v } $value {
         ::lappend obj $k [::json typed $v -map]
       }
       ::if { "-map" in $args } {
-        ::return [::list object $obj]
+        ::return "object $obj"
       }
       ::return [::json new object {*}$obj]
     }
@@ -304,7 +311,7 @@ proc ::json::typed {value args} {
       ::set arr {}
       ::set i 0
       ::foreach v $value {
-        ::set v [::json typed $v -map ]
+        ::set v [::json typed $v -map]
         ::if { $i == 0 && [::lindex $v 0] eq "array" && [::llength [::lindex $v 1]] == 2 } {
           ::set v [::lindex $v 1]
         }
@@ -312,19 +319,19 @@ proc ::json::typed {value args} {
         ::lappend arr $v
       }
       ::if { "-map" in $args } {
-        ::return [::list array $arr]
+        ::return "array $arr"
       }
       ::return [::json new array {*}$arr]
     }
     int - double {
       ::if { "-map" in $args } {
-        ::return [::list number [::expr {$value}]]
+        ::return "number [::expr {$value}]"
       }
       ::return [::expr {$value}]
     }
     boolean* {
       ::if { "-map" in $args } {
-        ::return [list boolean [::expr {bool($value)}]]
+        ::return "boolean [::expr {bool($value)}]"
       }
       ::return [::expr {bool($value)}]
     }
@@ -333,24 +340,24 @@ proc ::json::typed {value args} {
         ::return $value
       } elseif {[::string is entier -strict $value]} {
         ::if { "-map" in $args } {
-          ::return [::list number [::expr {$value}]]
+          ::return "number [::expr {$value}]"
         }
         ::return [::expr {$value}]
       } elseif {[::string is double -strict $value]} {
         ::if { "-map" in $args } {
-          ::return [::list number [::expr {$value}]]
+          ::return "number [::expr {$value}]"
         }
         ::return [::expr {$value}]
       } elseif {[::string is boolean -strict $value]} {
         ::if { "-map" in $args } {
-          ::return [::list boolean [::expr {bool($value)}]]
+          ::return "boolean [::expr {bool($value)}]"
         }
         ::return [::expr {bool($value)}]
       }
     }
   }
   ::if { "-map" in $args } {
-    ::return [::list string [::json new string $value]]
+    ::return "string [::json new string $value]"
   }
   ::return [::json new string $value]
 }
@@ -394,12 +401,32 @@ proc ::json::start {} {
   ::return $json
 }
 
+if 0 {
+  @ json parse $jsonValue @
+    | This is used to globally parse yajltcl objects.
+    | As of 1.6.2 there has been a bug that does not
+    | allow parsing an object more than once without resetting
+    | so we instead use a global object here that we can reset
+    | without worry.
+}
+proc ::json::parse val {
+  if {![::info exists ::json::parser] || $::json::parser eq {}} {
+    # create our parser if it doesnt exist
+    ::set ::json::parser [::yajl create #auto]
+  }
+  ::set parsed [$::json::parser parse $val]
+  $::json::parser reset
+  ::return $parsed
+}
+
 proc ::json::done { json } {
   ::try {
     ::set body [$json get]
     $json delete
   } on error {r} {
-    ::catch { $json delete }
+    ::catch {
+      $json delete
+    }
     ::throw $r
   }
   ::return $body

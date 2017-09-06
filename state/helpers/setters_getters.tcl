@@ -323,11 +323,11 @@ package require typeof
     my serialize_meta $json [dict get $args -meta]
   }
   if { [dict exists $args -context] } {
-    set parsed [$json parse [json typed [dict get $args -context]]]
+    set parsed [::json parse [json typed [dict get $args -context]]]
     $json map_key context {*}$parsed
   }
   if { [dict exists $args -entries] } {
-    set parsed [$json parse [state json [namespace tail [self]] {*}[dict get $args -entries]]]
+    set parsed [::json parse [state json [namespace tail [self]] {*}[dict get $args -entries]]]
     $json map_key entries {*}$parsed
   }
   $json map_close
@@ -342,6 +342,7 @@ package require typeof
     }
     foreach value $values {
       set val [set [string toupper $value]]
+      puts "$value | $val"
       switch -- [::typeof $val] {
         boolean {
           $json map_key [string tolower $value] boolean $val
@@ -350,12 +351,20 @@ package require typeof
           $json map_key [string tolower $value] number $val
         }
         list {
+          puts list
+          set j [json typed $val]
+          puts $j
           # workaround since number no longer allows invalid values
-          set parsed [$json parse [json typed $val]]
+          set parsed [::json parse $j]
+          puts "Parsed: $parsed"
           $json map_key [string tolower $value] {*}$parsed
         }
         dict {
-          set parsed [$json parse [json typed $val]]
+          puts dict
+          set j [::json typed $val]
+          puts $j
+          set parsed [::json parse $j]
+          puts $parsed
           $json map_key [string tolower $value] {*}$parsed
         }
         string - default {
