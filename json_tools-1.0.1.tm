@@ -39,9 +39,20 @@ namespace eval ::json {
   ::variable whiteSpaceRE {[[:space:]]*}
   # Regular expression for validating a JSON text
   ::variable validJsonRE "^(?:${whiteSpaceRE}(?:$tokenREv))*${whiteSpaceRE}$"
-  # 
+  #
   ::namespace ensemble create -unknown [::list ::json::unknown]
   ::namespace export {[a-z]*}
+}
+
+# In-case new commands are added to rl_json we pass them through to the
+# rl_json procedure.  When handled with tailcall we should see a speed
+# improvement of the handling (have yet to benchmark it).
+proc ::json::unknown { ns cmd args } {
+  ::switch -- $cmd {
+    default {
+      ::return [ ::list ::rl_json::json $cmd ]
+    }
+  }
 }
 
 
@@ -94,7 +105,7 @@ proc ::json::validate v {
   ::return [ ::regexp -- $validJsonRE $v ]
 }
 
-# Push local variables into the json object while optionally transforming 
+# Push local variables into the json object while optionally transforming
 # the keys and/or default value should the value of the variable be {}
 
 proc ::json::push { vname args } {
@@ -114,7 +125,7 @@ proc ::json::push { vname args } {
 }
 
 # Pull keys from the json object and create them as local variables in the
-# callers scope.  Optionally provide the variables name, the default value 
+# callers scope.  Optionally provide the variables name, the default value
 # if the key was not found, and a path to the key.
 # - Each element is either the name of the key or a list of $key $newName $default ...$path
 #   where items in the list are optional.
@@ -131,7 +142,7 @@ proc ::json::pull { vname args } {
     ::if { [exists $j {*}$path $variable] } {
       ::lassign [get_typed $j {*}$path $variable] value type
       ::set ex  [extract $j {*}$path $variable]
-      set rj {*}$path $name $ex 
+      set rj {*}$path $name $ex
     } else { ::set value $default }
   }
   ::return $rj
@@ -150,14 +161,14 @@ proc ::json::merge { json args } {
 }
 
 
-# Similar to json pull, this allows you to provide a list as the first 
+# Similar to json pull, this allows you to provide a list as the first
 # argument to define the path you wish to operate from as a root.
 # - Each argument may still specify the same arguments as in json pull
 #   except that it will operate from the given main path.
 proc ::json::pullFrom { vname args } {
   ::set mpath [::lassign $vname var]
   ::upvar 1 $var check
-  ::if { [::info exists check] } { 
+  ::if { [::info exists check] } {
     ::set j $check
   } else { ::set j $var }
   ::set rj {{}}
@@ -173,15 +184,15 @@ proc ::json::pullFrom { vname args } {
       set rj $name $default
     } else { ::set value {} }
   }
-  ::return $rj 
+  ::return $rj
 }
 
 proc ::json::destruct args {
-  
+
 }
 
 # Returns a new json object comprised of the given keys (if they existed in the
-# original json object).  
+# original json object).
 proc ::json::pick { var args } {
   ::set rj {{}}
   ::foreach arg $args {
@@ -198,7 +209,7 @@ proc ::json::pick { var args } {
 # value ($key) and assigns that as the main keys value.
 # { "foo": { "v" : 2 }, "bar": { "v": 3 } }
 # withKey $j v == { "foo": 2, "bar": 3 }
-proc ::json::withKey { var key } { 
+proc ::json::withKey { var key } {
   ::set rj {{}}
   rl foreach {k v} $var {
     ::if { [exists $v $key] } { set rj $k [extract $var $k $key] }
@@ -224,11 +235,11 @@ proc ::json::file2dict { file } {
 }
 
 # Does a "best attempt" to discover and handle the value of an item and convert it
-# to a json object or value.  Primitive support for properly built nested data 
+# to a json object or value.  Primitive support for properly built nested data
 # structures but should not be relied upon for that.  This is generally used to
 # convert to a json value (example: hi -> "hi") and will first confirm the value
 # is not already a json value (example: "hi" -> "hi")
-# 
+#
 # This is a key ingredient to allowing many of the other functions to work.
 proc ::json::typed {value args} {
   # puts "typed $value"
@@ -237,10 +248,10 @@ proc ::json::typed {value args} {
   # puts "type $type"
   ::if { "-map" ni $args && ! [ ::catch { type $value } err ] } { ::return $value }
   ::switch -glob -- $type {
-    dict   { 
+    dict   {
       ::set obj {}
       ::dict for { k v } $value {
-        ::lappend obj $k [ typed $v -map ]  
+        ::lappend obj $k [ typed $v -map ]
       }
       ::if { "-map" in $args } { ::return "object $obj" }
       ::return [new object {*}$obj]
@@ -263,7 +274,7 @@ proc ::json::typed {value args} {
       ::if { "-map" in $args } { ::return "number [::expr {$value}]" }
       ::return [::expr {$value}]
     }
-    boolean* { 
+    boolean* {
       ::if { "-map" in $args } { ::return "boolean [::expr {bool($value)}]" }
       ::return [::expr {bool($value)}] }
     *string - default {
@@ -282,10 +293,10 @@ proc ::json::typed {value args} {
     }
   }
   ::if { "-map" in $args } { ::return "string [new string $value]" }
-  ::return [new string $value] 
+  ::return [new string $value]
 }
 
-# Modifies an object. 
+# Modifies an object.
 # set j {{
 #  "foo": "bar",
 #  "baz": [ "foo", "bar", "qux" ]
@@ -295,7 +306,6 @@ proc ::json::typed {value args} {
 # %   "foo": "bar",
 # %   "baz": [ "foo", "bar", "qux", "one" ]
 # % }}
-json object lappend j baz one
 proc ::json::object { what args } {
   ::set r {{}}
   ::switch -- $what {
@@ -314,7 +324,7 @@ proc ::json::object { what args } {
       ::json set j $k [ typed [ ::lappend val {*}$args ] ]
       ::return $j
     }
-  } 
+  }
   ::return $r
 }
 
@@ -325,22 +335,11 @@ proc ::json::start {} {
 
 proc ::json::done { json } {
   ::try {
-    ::set body [$json get] 
+    ::set body [$json get]
     $json delete
   } on error {r} {
     ::catch { $json delete }
     ::throw $r
   }
   ::return $body
-}
-
-# In-case new commands are added to rl_json we pass them through to the 
-# rl_json procedure.  When handled with tailcall we should see a speed
-# improvement of the handling (have yet to benchmark it).
-proc ::json::unknown { ns cmd args } { 
-  ::switch -- $cmd {
-    default {
-      ::return [ ::list ::rl_json::json $cmd ]
-    }
-  }
 }
