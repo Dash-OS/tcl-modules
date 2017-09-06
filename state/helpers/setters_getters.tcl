@@ -306,7 +306,9 @@ package require typeof
 	} on error {result options} {
 		# If we encounter an error, we need to conduct some cleanup, then we throw
 		# the error to the next level.
-		catch { $json delete }
+		catch {
+      $json delete
+    }
 		throw error $result
 	}
 	return $body
@@ -342,7 +344,6 @@ package require typeof
     }
     foreach value $values {
       set val [set [string toupper $value]]
-      puts "$value | $val"
       switch -- [::typeof $val] {
         boolean {
           $json map_key [string tolower $value] boolean $val
@@ -351,20 +352,12 @@ package require typeof
           $json map_key [string tolower $value] number $val
         }
         list {
-          puts list
-          set j [json typed $val]
-          puts $j
           # workaround since number no longer allows invalid values
-          set parsed [::json parse $j]
-          puts "Parsed: $parsed"
+          set parsed [::json parse [json typed $val]]
           $json map_key [string tolower $value] {*}$parsed
         }
         dict {
-          puts dict
-          set j [::json typed $val]
-          puts $j
-          set parsed [::json parse $j]
-          puts $parsed
+          set parsed [::json parse [::json typed $val]]
           $json map_key [string tolower $value] {*}$parsed
         }
         string - default {
