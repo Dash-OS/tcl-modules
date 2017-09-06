@@ -76,7 +76,7 @@ proc ::state::register_default_types {} {
 
   ::state::register::type json {
     validate {v} {
-      json validate $v
+      ::json validate $v
     }
     json {k v json} {
       $json map_key $k string $v
@@ -199,7 +199,8 @@ proc ::state::register_default_types {} {
       }
     }
     json {k v json} {
-      $json map_key $k number [::json typed [dict create {*}$v]]
+      set parsed [$json parse [::json typed [dict create {*}$v]]]
+      $json map_key $k {*}$parsed
     }
   }
 

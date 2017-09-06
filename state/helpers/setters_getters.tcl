@@ -74,7 +74,9 @@ package require typeof
 				foreach middleware [dict values [dict get $MIDDLEWARES onSnapshot]] {
 					$middleware onSnapshot $snapshot
 					# If a middleware upvars and removes the snapshot, we will break
-					if { ! [info exists snapshot] } { break }
+					if { ! [info exists snapshot] } {
+            break
+          }
 				}
 			}
 		}
@@ -106,12 +108,18 @@ package require typeof
 	      set exists [ $item set $ENTRY_ID $v ]
 	    } else { set exists 0 }
   		if { ! $exists } {
-  			if { $k in $ITEMS } { set ITEMS [lsearch -all -inline -not -exact $ITEMS $k] }
-  		} elseif { $k ni $ITEMS } { lappend ITEMS $k }
+  			if { $k in $ITEMS } {
+          set ITEMS [lsearch -all -inline -not -exact $ITEMS $k]
+        }
+  		} elseif { $k ni $ITEMS } {
+        lappend ITEMS $k
+      }
 		} trap VALIDATION_ERROR { result } {
 		  # If a validation occurs we need to revert any values we have already set
 		  foreach rkey [dict keys $data] {
-		    if { $rkey eq $k } { continue }
+		    if { $rkey eq $k } {
+          continue
+        }
 		    set item [my item $rkey]
 		    if { [info commands $item] ne {} } {
   		    if { ! [ $item revert $ENTRY_ID ] } {
@@ -143,16 +151,24 @@ package require typeof
 		set prev [dict get $VALUES $key]
 	} elseif { $value ne {} } {
 		set prev {}
-	} else { return 0 }
+	} else {
+    return 0
+  }
 	if { $value eq {} } {
 		# Setting an item to a value of {} will remove it from the state.
 		# an empty value shall be treated as "null" for our purposes and may
 		# be further interpreted by the higher-order-procedures.
 		# -- Still have to determine if this is the appropriate logic to use.
-		if { $REQUIRED && ! $force } { throw REMOVE_REQUIRED_ITEM "State [namespace tail $CONTAINER] | Error | $ITEM_ID is a required item but you tried to remove it in entry $key" }
-		if { [dict exists $VALUES $key] } { dict unset VALUES $key }
-		if { [dict exists $PREV $key] }   { dict unset PREV   $key }
-		if { [info exists snapshot] } {
+		if { $REQUIRED && ! $force } {
+      throw REMOVE_REQUIRED_ITEM "State [namespace tail $CONTAINER] | Error | $ITEM_ID is a required item but you tried to remove it in entry $key"
+    }
+		if {[dict exists $VALUES $key]} {
+      dict unset VALUES $key
+    }
+		if {[dict exists $PREV $key]} {
+      dict unset PREV $key
+    }
+		if {[info exists snapshot]} {
 			dict lappend snapshot removed $ITEM_ID
 			if { [dict exists $snapshot set] } {
 			  dict set snapshot set [lsearch -all -inline -not -exact [dict get $snapshot set] $ITEM_ID]
@@ -169,7 +185,9 @@ package require typeof
   			dict set snapshot items $ITEM_ID [dict create value $value prev {} ]
   		} else {
   			dict set snapshot items $ITEM_ID [dict create value $value prev $prev]
-  			if { [string equal $prev $value] } { return 1 } else {
+  			if { [string equal $prev $value] } {
+          return 1
+        } else {
   				dict lappend snapshot changed $ITEM_ID
   			}
   		}
@@ -186,7 +204,9 @@ package require typeof
   } else { set value {} }
   if { [dict exists $PREV $entry_id] } {
     set prev [dict get $PREV $entry_id]
-  } else { set prev {} }
+  } else {
+    set prev {}
+  }
   if { $prev eq {} } {
     if { $REQUIRED } {
       throw ENTRY_INVALID "State [namespace tail $CONTAINER] | Error | $entry_id item $ITEM_ID is required but now invalid, the entry will be removed"
@@ -215,7 +235,7 @@ package require typeof
 			dict unset value $KEY
 		}
 	} elseif { $ENTRIES ne {} } {
-		set items [lassign $args entries]
+		set items   [lassign $args entries]
 		set entries [expr { $entries eq {} ? $ENTRIES : $entries }]
 		foreach entry $entries[set entries {}] {
 			if { $entry in $ENTRIES } {
@@ -229,12 +249,10 @@ package require typeof
 ::oo::define ::state::Entry method get {op {items {}} args} {
   set value {}
 	set items [expr { $items eq {} ? $ITEMS : $items }]
-# 	switch -- [string tolower $op] {
-# 	  snapshot { set value [dict create $KEY [dict create value $ENTRY_ID prev {}]] }
-# 	  default  { set value [dict create $KEY $ENTRY_ID] }
-# 	}
 	foreach itemID $items {
-		if { $itemID ni $ITEMS } { continue }
+		if { $itemID ni $ITEMS } {
+      continue
+    }
 		set item [my item $itemID]
 		if { [info commands $item] ne {} } {
   	  dict set value $itemID \
@@ -305,14 +323,15 @@ package require typeof
     my serialize_meta $json [dict get $args -meta]
   }
   if { [dict exists $args -context] } {
-    $json map_key context number [json typed [dict get $args -context]]
+    set parsed [$json parse [json typed [dict get $args -context]]]
+    $json map_key context {*}$parsed
   }
   if { [dict exists $args -entries] } {
-    $json map_key entries number [state json [namespace tail [self]] {*}[dict get $args -entries]]
+    set parsed [$json parse [state json [namespace tail [self]] {*}[dict get $args -entries]]]
+    $json map_key entries {*}$parsed
   }
   $json map_close
   set body [json done $json]
-
 }
 
 ::oo::define ::state::Container method serialize_meta { json values } {
@@ -323,18 +342,21 @@ package require typeof
     }
     foreach value $values {
       set val [set [string toupper $value]]
-      switch -- [typeof $val] {
+      switch -- [::typeof $val] {
         boolean {
-          $json map_key [string tolower $value] bool $val
+          $json map_key [string tolower $value] boolean $val
         }
         number {
           $json map_key [string tolower $value] number $val
         }
         list {
-          $json map_key [string tolower $value] number [json typed $val]
+          # workaround since number no longer allows invalid values
+          set parsed [$json parse [json typed $val]]
+          $json map_key [string tolower $value] {*}$parsed
         }
         dict {
-          $json map_key [string tolower $value] number [json typed $val]
+          set parsed [$json parse [json typed $val]]
+          $json map_key [string tolower $value] {*}$parsed
         }
         string - default {
           $json map_key [string tolower $value] string $val
@@ -397,7 +419,9 @@ package require typeof
   if { [info exists snapshot] } {
     foreach middleware [dict values [dict get $MIDDLEWARES onSnapshot]] {
 			$middleware onSnapshot $snapshot
-			if { ! [info exists snapshot] } { break }
+			if { ! [info exists snapshot] } {
+        break
+      }
 		}
   }
 	return
@@ -428,15 +452,21 @@ package require typeof
 }
 
 ::oo::define ::state::Container method query query {
-  if { $ENTRIES eq {} || $KEY eq "@@S" } { return }
+  if { $ENTRIES eq {} || $KEY eq "@@S" } {
+    return
+  }
 	set results [list]
-	foreach or  [dict get $query ors] {
+	foreach or [dict get $query ors] {
 		set filtered $ENTRIES
 		foreach filter $or {
 			set filtered [my filter_entries $filtered $filter]
-			if { $filtered eq {} } { break }
+			if { $filtered eq {} } {
+        break
+      }
 		}
-		if { $filtered ne {} } { lappend results $filtered }
+		if { $filtered ne {} } {
+      lappend results $filtered
+    }
 	}
 	return [lsort -unique [concat {*}$results]]
 }
@@ -448,7 +478,9 @@ package require typeof
       set prev $value
       if { [try [dict get $filter evaluate]] } {
         set value
-      } else { continue }
+      } else {
+        continue
+      }
     }]
     return $entries
   } elseif { [info commands items::[dict get $filter key]] ne {} } {
@@ -458,7 +490,9 @@ package require typeof
 
 ::oo::define ::state::Item method filter { filter entries args } {
   set values [dict filter $VALUES key {*}$entries]
-  if { $values eq {} } { return }
+  if { $values eq {} } {
+    return
+  }
   return [dict keys [run \
     -scoped \
     -vars [list ITEM_ID] \

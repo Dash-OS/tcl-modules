@@ -7,6 +7,7 @@ package require rl_json
 catch { package require yajltcl }
 
 # require typeof
+# https://github.com/Dash-OS/tcl-modules/blob/master/typeof-1.0.0.tm
 package require typeof
 
 # Taken from the json tcllib package for validation
@@ -81,9 +82,12 @@ proc ::json::pretty    args { ::tailcall ::rl_json::json pretty    {*}$args }
 # of an empty string ({}).  Since a JSON object is valid when it is an empty
 # but properly formatted json object, exists will not throw an error with this
 # workaround and will perform as expected (returning false since nothing exists)
-proc ::json::exists { j args } {
+proc ::json::exists {j args} {
   ::switch -- $j {
-    {} - {{}} { ::return 0 } default {
+    {} - {{}} {
+      ::return 0
+    }
+    default {
       try {
         ::tailcall ::rl_json::json exists $j {*}$args
       } on error {result} {
@@ -95,34 +99,49 @@ proc ::json::exists { j args } {
 
 # Attempt to get the json value (returned as a dict) of the path.  If the
 # path does not exist, returns {} rather than an error.
-proc ::json::get?      args {
-  ::if { [ ::json exists {*}$args ] } {
+proc ::json::get? args {
+  ::if {[::json exists {*}$args]} {
     ::tailcall ::rl_json::json get {*}$args
-  } else { ::return }
+  } else {
+    ::return
+  }
 }
 
 # Attempt to validate that a given value is a json object, returns bool
-proc ::json::isjson   v { ::tailcall json validate $v }
+proc ::json::isjson v {
+  ::tailcall ::json validate $v
+}
+
 proc ::json::validate v {
   ::variable validJsonRE
-  ::return [ ::regexp -- $validJsonRE $v ]
+  ::return [::regexp -- $validJsonRE $v]
 }
 
 # Push local variables into the json object while optionally transforming
 # the keys and/or default value should the value of the variable be {}
 
-proc ::json::push { vname args } {
-  ::if { $vname ne "->" } { ::upvar 1 $vname rj }
-  ::if { ! [::info exists rj] || $rj eq {} } { ::set rj {{}} }
+proc ::json::push {vname args} {
+  ::if { $vname ne "->" } {
+    ::upvar 1 $vname rj
+  }
+  ::if { ! [::info exists rj] || $rj eq {} } {
+    ::set rj {{}}
+  }
   ::foreach arg $args {
     ::set default [::lassign $arg variable name]
     ::upvar 1 $variable value
-    ::if { [::info exists value] } {
-      ::if { $name eq {} } { ::set name $variable }
+    ::if {[::info exists value]} {
+      ::if { $name eq {} } {
+        ::set name $variable
+      }
       ::if { $value ne {} } {
-        set rj $name [typed $value]
-      } else { set rj $name [typed $default] }
-    } else { ::throw error "$variable doesn't exist when trying to push $name into dict $var" }
+        ::json set rj $name [::json typed $value]
+      } else {
+        ::json set rj $name [::json typed $default]
+      }
+    } else {
+      ::throw error "$variable doesn't exist when trying to push $name into dict $var"
+    }
   }
   ::return $rj
 }
@@ -132,27 +151,33 @@ proc ::json::push { vname args } {
 # if the key was not found, and a path to the key.
 # - Each element is either the name of the key or a list of $key $newName $default ...$path
 #   where items in the list are optional.
-proc ::json::pull { vname args } {
+proc ::json::pull {vname args} {
   ::upvar 1 $vname check
   ::if { [::info exists check] } {
     ::set j $check
-  } else { ::set j $vname }
+  } else {
+    ::set j $vname
+  }
   ::set rj {{}}
   ::foreach v $args {
     ::set path [::lassign $v variable name default]
-    ::if { $name eq {} } { ::set name $variable }
+    ::if { $name eq {} } {
+      ::set name $variable
+    }
     ::upvar 1 $name value
-    ::if { [exists $j {*}$path $variable] } {
-      ::lassign [get_typed $j {*}$path $variable] value type
-      ::set ex  [extract $j {*}$path $variable]
-      set rj {*}$path $name $ex
-    } else { ::set value $default }
+    ::if { [::json exists $j {*}$path $variable] } {
+      ::lassign [::json get_typed $j {*}$path $variable] value type
+      ::set ex  [::json extract $j {*}$path $variable]
+      ::json set rj {*}$path $name $ex
+    } else {
+      ::set value $default
+    }
   }
   ::return $rj
 }
 
 # Works identically to [dict merge] but also validates.
-proc ::json::merge { json args } {
+proc ::json::merge {json args} {
   ::if { $json eq {} } { ::set json {{}} }
   ::foreach arg $args {
     ::if { ! [::json validate $arg] } { continue }
@@ -168,24 +193,30 @@ proc ::json::merge { json args } {
 # argument to define the path you wish to operate from as a root.
 # - Each argument may still specify the same arguments as in json pull
 #   except that it will operate from the given main path.
-proc ::json::pullFrom { vname args } {
+proc ::json::pullFrom {vname args} {
   ::set mpath [::lassign $vname var]
   ::upvar 1 $var check
   ::if { [::info exists check] } {
     ::set j $check
-  } else { ::set j $var }
+  } else {
+    ::set j $var
+  }
   ::set rj {{}}
   ::foreach v $args {
     ::set path [::lassign $v variable name default]
-    ::if { $name eq {} } { ::set name $variable }
+    ::if { $name eq {} } {
+      ::set name $variable
+    }
     ::upvar 1 $name value
-    ::if { [ exists $j {*}$mpath $variable {*}$path ] } {
-      ::set value [ get $j {*}$mpath $variable {*}$path ]
-      set rj $name [extract $j {*}$mpath $variable {*}$path]
+    ::if { [::json exists $j {*}$mpath $variable {*}$path ] } {
+      ::set value [::json get $j {*}$mpath $variable {*}$path ]
+      ::json set rj $name [::json extract $j {*}$mpath $variable {*}$path]
     } elseif { $default ne {} } {
       ::set value $default
-      set rj $name $default
-    } else { ::set value {} }
+      ::json set rj $name $default
+    } else {
+      ::set value {}
+    }
   }
   ::return $rj
 }
@@ -196,13 +227,13 @@ proc ::json::destruct args {
 
 # Returns a new json object comprised of the given keys (if they existed in the
 # original json object).
-proc ::json::pick { var args } {
+proc ::json::pick {var args} {
   ::set rj {{}}
   ::foreach arg $args {
     ::set path [::lrange  $arg 0 end-1]
     ::set as   [::lindex  $arg end]
-    ::if { [exists $var {*}$path $as] } {
-      set rj $as [extract $var {*}$path $as]
+    ::if { [::json exists $var {*}$path $as] } {
+      ::json set rj $as [::json extract $var {*}$path $as]
     }
   }
   ::return $rj
@@ -215,7 +246,9 @@ proc ::json::pick { var args } {
 proc ::json::withKey { var key } {
   ::set rj {{}}
   rl foreach {k v} $var {
-    ::if { [exists $v $key] } { set rj $k [extract $var $k $key] }
+    ::if { [::json exists $v $key] } {
+      ::json set rj $k [::json extract $var $k $key]
+    }
   }
   ::return $rj
 }
@@ -224,17 +257,25 @@ proc ::json::withKey { var key } {
 # number of arguments.
 proc ::json::modify { vname args } {
   ::upvar 1 $vname rj
-  ::if { ! [::info exists rj] } { ::set rj {{}} }
-  ::if { [::llength $args] == 1 } { ::set args [::lindex $args 0] }
-  ::dict for { k v } $args { set rj $k [typed $v] }
+  ::if { ! [::info exists rj] } {
+    ::set rj {{}}
+  }
+  ::if { [::llength $args] == 1 } {
+    ::set args [::lindex $args 0]
+  }
+  ::dict for { k v } $args {
+    ::json set rj $k [typed $v]
+  }
   ::return $rj
 }
 
 proc ::json::file2dict { file } {
-  ::if { [::file isfile $file] } {
+  ::if {[::file isfile $file]} {
     ::set data [::string trim [::fileutil::cat $file]]
     ::return [::json get $data]
-  } else { ::throw error "File $file does not exist - cant convert from json to dict!" }
+  } else {
+    ::throw error "File $file does not exist - cant convert from json to dict!"
+  }
 }
 
 # Does a "best attempt" to discover and handle the value of an item and convert it
@@ -245,25 +286,25 @@ proc ::json::file2dict { file } {
 #
 # This is a key ingredient to allowing many of the other functions to work.
 proc ::json::typed {value args} {
-  ::if { "-map" ni $args && ! [ ::catch { type $value } err ] } {
+  ::if { "-map" ni $args && ! [ ::catch {::json type $value} err ] } {
     ::return $value
   }
   ::switch -glob -- [::typeof $value -exact] {
     dict {
       ::set obj {}
       ::dict for { k v } $value {
-        ::lappend obj $k [typed $v -map]
+        ::lappend obj $k [::json typed $v -map]
       }
       ::if { "-map" in $args } {
         ::return [::list object $obj]
       }
-      ::return [new object {*}$obj]
+      ::return [::json new object {*}$obj]
     }
     *array - list {
       ::set arr {}
       ::set i 0
       ::foreach v $value {
-        ::set v [ typed $v -map ]
+        ::set v [::json typed $v -map ]
         ::if { $i == 0 && [::lindex $v 0] eq "array" && [::llength [::lindex $v 1]] == 2 } {
           ::set v [::lindex $v 1]
         }
@@ -273,7 +314,7 @@ proc ::json::typed {value args} {
       ::if { "-map" in $args } {
         ::return [::list array $arr]
       }
-      ::return [new array {*}$arr]
+      ::return [::json new array {*}$arr]
     }
     int - double {
       ::if { "-map" in $args } {
@@ -285,7 +326,8 @@ proc ::json::typed {value args} {
       ::if { "-map" in $args } {
         ::return [list boolean [::expr {bool($value)}]]
       }
-      ::return [::expr {bool($value)}] }
+      ::return [::expr {bool($value)}]
+    }
     *string - default {
       ::if {$value eq "null"} {
         ::return $value
@@ -308,9 +350,9 @@ proc ::json::typed {value args} {
     }
   }
   ::if { "-map" in $args } {
-    ::return [::list string [new string $value]]
+    ::return [::list string [::json new string $value]]
   }
-  ::return [new string $value]
+  ::return [::json new string $value]
 }
 
 # Modifies an object.
@@ -328,17 +370,19 @@ proc ::json::object { what args } {
   ::switch -- $what {
     create {
       ::dict for {k v} $args {
-        ::json set r $k [typed $v]
+        ::json set r $k [::json typed $v]
       }
     }
     lappend {
       ::set args [::lassign $args v k]
       ::upvar 1 $v j
-      ::if { [info exists j] && [exists $j $k] } {
-        ::lassign [get_typed $j $k] val type
-        ::if { $type ne "array" } { ::throw error "You must use json object lappend on an array value" }
+      ::if { [info exists j] && [::json exists $j $k] } {
+        ::lassign [::json get_typed $j $k] val type
+        ::if { $type ne "array" } {
+          ::throw error "You must use json object lappend on an array value"
+        }
       }
-      ::json set j $k [ typed [ ::lappend val {*}$args ] ]
+      ::json set j $k [::json typed [::lappend val {*}$args]]
       ::return $j
     }
   }
