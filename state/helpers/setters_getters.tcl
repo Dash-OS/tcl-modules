@@ -1,16 +1,16 @@
 ## Setters & Getters
 # 	These commands are responsible for modifying or reading from the state
 #		in some way.  Each command is passed through the state, routed as necessary
-#		based on the arguments received.  
+#		based on the arguments received.
 #
 #		We need to gather special information when we have subscriptions to fufill.
-#		When we are working with a subscribed state, the snapshot variable will be 
+#		When we are working with a subscribed state, the snapshot variable will be
 #		passed down with the execution of the command.  It will be modified to generate
-#		an overall "snapshot" of the modification that was made.  
+#		an overall "snapshot" of the modification that was made.
 #
 #		#		Snapshots
-#	
-#		A snapshot provides a detailed view of what occurred during the course of the 
+#
+#		A snapshot provides a detailed view of what occurred during the course of the
 #		given action.  This is used by our subscription evaluator to efficiently determine
 #		if any matching subscriptions should be triggered.
 #
@@ -23,8 +23,8 @@
 		} else {
 			set stateKeyValue [dict get $data $KEY]
 		}
-		if { $READY && [dict exists $MIDDLEWARES onSnapshot] } {  
-			# We only create a snapshot when the state has active middlewares that 
+		if { $READY && [dict exists $MIDDLEWARES onSnapshot] } {
+			# We only create a snapshot when the state has active middlewares that
 			# are expecting a snapshot.
 			set snapshot [dict create \
 				keyID    $KEY \
@@ -45,7 +45,7 @@
 			if { [info exists snapshot] } {
 				dict lappend snapshot created $KEY
 			}
-		  my CreateEntry $stateKeyValue 
+		  my CreateEntry $stateKeyValue
 		}
 		try {
 		  entries::$stateKeyValue set $data
@@ -71,7 +71,7 @@
 				# value. This only occurs by default if the snapshot changes.
 				foreach middleware [dict values [dict get $MIDDLEWARES onSnapshot]] {
 					$middleware onSnapshot $snapshot
-					# If a middleware upvars and removes the snapshot, we will break 
+					# If a middleware upvars and removes the snapshot, we will break
 					if { ! [info exists snapshot] } { break }
 				}
 			}
@@ -116,7 +116,7 @@
   		      if { $rkey eq $KEY } {
   		        [self] destroy
   		      } else {
-  		        my remove $rkey  
+  		        my remove $rkey
   		      }
   		    }
 		    }
@@ -126,7 +126,7 @@
 	}
 	if { [info exists snapshot] } {
 		# The actual entry key value
-		
+
 		# All the current items this entry has
 		dict set snapshot keys [concat $KEY $ITEMS]
 		# When we need to send commands to the entry later
@@ -139,21 +139,21 @@
 	upvar 1 snapshot snapshot
 	if { [dict exists $VALUES $key] } {
 		set prev [dict get $VALUES $key]
-	} elseif { $value ne {} } { 
-		set prev {} 
+	} elseif { $value ne {} } {
+		set prev {}
 	} else { return 0 }
 	if { $value eq {} } {
 		# Setting an item to a value of {} will remove it from the state.
-		# an empty value shall be treated as "null" for our purposes and may 
+		# an empty value shall be treated as "null" for our purposes and may
 		# be further interpreted by the higher-order-procedures.
 		# -- Still have to determine if this is the appropriate logic to use.
 		if { $REQUIRED && ! $force } { throw REMOVE_REQUIRED_ITEM "State [namespace tail $CONTAINER] | Error | $ITEM_ID is a required item but you tried to remove it in entry $key" }
 		if { [dict exists $VALUES $key] } { dict unset VALUES $key }
 		if { [dict exists $PREV $key] }   { dict unset PREV   $key }
 		if { [info exists snapshot] } {
-			dict lappend snapshot removed $ITEM_ID	
+			dict lappend snapshot removed $ITEM_ID
 			if { [dict exists $snapshot set] } {
-			  dict set snapshot set [lsearch -all -inline -not -exact [dict get $snapshot set] $ITEM_ID]  
+			  dict set snapshot set [lsearch -all -inline -not -exact [dict get $snapshot set] $ITEM_ID]
 			}
 			dict set snapshot items $ITEM_ID [dict create value {} prev $prev]
 		}
@@ -161,9 +161,9 @@
 	} elseif { ! [ my validate value ] } {
 		throw VALIDATION_ERROR "State [namespace tail $CONTAINER] | Error | Entry $key | $value does not match item ${ITEM_ID}'s schema: $TYPE"
   } else {
-  	if { [info exists snapshot] } { 
-  		if { $prev eq {} } { 
-  			dict lappend snapshot created $ITEM_ID 
+  	if { [info exists snapshot] } {
+  		if { $prev eq {} } {
+  			dict lappend snapshot created $ITEM_ID
   			dict set snapshot items $ITEM_ID [dict create value $value prev {} ]
   		} else {
   			dict set snapshot items $ITEM_ID [dict create value $value prev $prev]
@@ -180,10 +180,10 @@
 
 ::oo::define ::state::Item method revert entry_id {
   if { [dict exists $VALUES $entry_id] } {
-    set value [dict get $VALUES $entry_id] 
+    set value [dict get $VALUES $entry_id]
   } else { set value {} }
   if { [dict exists $PREV $entry_id] } {
-    set prev [dict get $PREV $entry_id] 
+    set prev [dict get $PREV $entry_id]
   } else { set prev {} }
   if { $prev eq {} } {
     if { $REQUIRED } {
@@ -246,7 +246,7 @@
 	if { [string equal $op SNAPSHOT] } {
 		return [ dict create value [dict get $VALUES $entryID {*}$args] prev [dict get $PREV $entryID {*}$args] ]
 	} elseif { [string equal $op ENTRY_REMOVED] } {
-	  # This is used to tell the item to expect that it will be removed so that we 
+	  # This is used to tell the item to expect that it will be removed so that we
 	  # can capture the appropriate snapshot data during item removal.
 	  return [ dict create value {} prev [dict get $VALUES $entryID {*}$args] ]
 	} else {
@@ -295,13 +295,13 @@
 # state serialize MyState \
 #   -meta    [list ] \
 #   -op      snapshot \
-#   -entries 
-  
+#   -entries
+
 ::oo::define ::state::Container method serialize args {
   set json [json start]
   $json map_open
   if { [dict exists $args -meta] } {
-    my serialize_meta $json [dict get $args -meta] 
+    my serialize_meta $json [dict get $args -meta]
   }
   if { [dict exists $args -context] } {
     $json map_key context number [json typed [dict get $args -context]]
@@ -311,16 +311,19 @@
   }
   $json map_close
   set body [json done $json]
-  
+
 }
 
 ::oo::define ::state::Container method serialize_meta { json values } {
   $json map_key meta map_open
     $json map_key state_id string [namespace tail [self]]
     if { $values eq "all" } { set values [list KEY READY ENTRIES REQUIRED CONFIG SCHEMA SUBSCRIBED MIDDLEWARES ITEMS] }
-    # 
+    #
     foreach value $values {
-      $json map_key [string tolower $value] number [json typed [set [string toupper $value]]]
+      set val [json typed [set [string toupper $value]]]
+      ::utils::flog "Serialize $value | $val"
+
+      $json map_key [string tolower $value] number $val
     }
   $json map_close
 }
@@ -357,8 +360,8 @@
 }
 
 ::oo::define ::state::Container method remove_key {key_value items args} {
-  if { $READY && [dict exists $MIDDLEWARES onSnapshot] } {  
-		# We only create a snapshot when the state has active middlewares that 
+  if { $READY && [dict exists $MIDDLEWARES onSnapshot] } {
+		# We only create a snapshot when the state has active middlewares that
 		# are expecting a snapshot.
 		set snapshot [dict create \
 			keyID    $KEY \
@@ -453,16 +456,16 @@
         if { [dict exists $modifiers before-eval] } {
           if { [dict exists $modifiers before-eval] } {
 						foreach modifier [dict get $modifiers before-eval] {
-							try $modifier 
-						}	
+							try $modifier
+						}
 					}
         }
         set result [ try $evaluate ]
         if { [dict exists $modifiers after-eval] } {
           if { [dict exists $modifiers after-eval] } {
 						foreach modifier [dict get $modifiers after-eval] {
-							try $modifier 
-						}	
+							try $modifier
+						}
 					}
         }
         set result
