@@ -4,7 +4,7 @@ package ifneeded tcl-modules 1.0 [list apply {{dir} {
   ::tcl::tm::path add \
     [file normalize \
       [file join \
-        [file dirname [info script]] tcl-modules
+        [file dirname [info script]]
       ]
     ]
 }} $dir]
