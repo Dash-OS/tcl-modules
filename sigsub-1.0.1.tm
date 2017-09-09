@@ -54,12 +54,7 @@ if 0 {
 
 package require pubsub
 package require ensembled
-
-if {[catch {package require Signal}]} {
-  # handle loading the signal package manually
-  # -- neded for our static internal implementation via tclkit
-  load {} Signal
-}
+package require signal
 
 namespace eval ::sigsub {ensembled}
 
