@@ -53,11 +53,11 @@ proc ::unix::serialize::procstat args {
 proc ::unix::serialize::meminfo args {
   set _meminfo [ string tolower [::fileutil::cat /proc/meminfo] ]
   set _meminfo [ dict create {*}[ string map { "kb" "" ":" "" } ${_meminfo} ] ]
-  if { $args ne {} } { set _meminfo [dict pull meminfo {*}$args] }
+  if { $args ne {} } { set _meminfo [dict pull _meminfo {*}$args] }
   return [json typed ${_meminfo}]
 }
 
-proc ::unix::serialize::uptime args { 
+proc ::unix::serialize::uptime args {
   set json {{}}
   lassign [ ::fileutil::cat /proc/uptime ] uptime idle
   json set json uptime [json typed $uptime]
@@ -114,7 +114,7 @@ proc ::unix::serialize::route { {iface eth0} } {
 	set tempDict  {}
 	foreach line $lines {
 		set gatewayIP     {}
-	  set netMask       {} 
+	  set netMask       {}
 	  set destinationIP {}
 		lassign $line iface dest gateway flags refcnt use metric mask mtu window irtt
 		# We need to do this so the reprentation is a pure string
@@ -178,4 +178,3 @@ proc ::unix::serialize::processes args {
     ::onError $result $options "While getting System Processes"
   }
 }
-
