@@ -76,7 +76,11 @@ proc ::http::parse_token { token } {
       data   [::http::data   $token]
     ]
   } on error {result options} {
-    catch { ::onError $result $options "While Parsing a Token" }
-  } finally { ::http::cleanup $token }
-  return $response
+    if {[info commands ::onError] ne {}} {
+      catch { ::onError $result $options "While Parsing a Token" }
+    }
+  } finally {
+    catch { ::http::cleanup $token }
+    return $response
+  }
 }
