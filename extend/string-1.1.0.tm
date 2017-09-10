@@ -10,7 +10,7 @@ extend ::string {
     ::set next 0
     ::dict for { match response } $args {
       ::set matches [::string match {*}$nocase $match $var]
-      ::if {$matches || $next} { 
+      ::if {$matches || $next} {
         if { $response eq "-" } {
           ::set next 1
           ::continue
@@ -21,15 +21,15 @@ extend ::string {
     }
     ::return
   }
-  
-  
-  
+
   if { [::catch {::string cat}] } {
-    proc cat args { ::join $args {} }
+    proc cat args {
+      ::return [::join $args {}]
+    }
   }
-  
+
   proc tocamel word {
-    ::set buf ""
+    ::set buf {}
     ::set c 0
     ::set newWord false
     ::foreach char [::split $word {}] {
@@ -46,29 +46,38 @@ extend ::string {
     }
     ::return $buf
   }
-  
+
   proc compact str {
-    ::regsub -all "\[ \t\n]+" $str { } newStr
-    ::tailcall ::string trim $newStr
+    ::regsub -all {[ \t\n]+} $str { } newStr
+    ::return [::string trim $newStr]
   }
-  
+
   # round to the given number of decimals [string round 20 2] ; 20.00
-  proc round { n {count 2} } { ::format %.${count}f $n }
-  
+  proc round { n {count 2} } {
+    ::return [::format %.${count}f $n]
+  }
+
   proc slugify str {
     ::set str [::string map { {?} {} {&} {=} {} {} {!} {} {.} {} {,} {} {$} {} {/} {} {#} {} {[} {} {]} {} } $str]
-    ::tailcall ::string tolower [::string map { { } {-} } [::string compact $str]]
+    ::return [::string tolower \
+      [::string map { { } {-} } [::string compact $str]
+    ]
   }
-  
+
   proc hasvars str {
-    ::tailcall regexp {\$[^\s[:digit:]]{?[^\w]*?}?} $str
+    ::return [::regexp {\$[^\s[:digit:]]{?[^\w]*?}?} $str]
   }
-  
+
   proc vars {str} {
-    ::tailcall regexp -inline -all {\$\:?\:?{?[^\s[:digit:](?!:\{?[:digit:]\}?)]\w*\:?\:?\(?\w*\)?[^\s+\w\)]?}?} $str
+    ::return [::regexp -inline -all \
+      {\$\:?\:?{?[^\s[:digit:](?!:\{?[:digit:]\}?)]\w*\:?\:?\(?\w*\)?[^\s+\w\)]?}?} \
+      $str
+    ]
   }
-  
+
   proc varnames {str} {
-    ::tailcall string map { {$} {} "\{" "" "\}" "" \\ {}} [string vars $str]
+    ::return [::string map { {$} {} "\{" "" "\}" "" \\ {}} \
+      [::string vars $str]
+    ]
   }
 }

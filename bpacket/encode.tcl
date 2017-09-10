@@ -103,14 +103,16 @@ set ::bpacket::value_ids [dict create \
       set value_type [dict get $::bpacket::value_types $value_type]
     }
     set params [list $value_type $req $keys]
-    if { $args ne {} } {
+    if {$args ne {}} {
       set args [list {*}$args]
       lappend params $args
     }
     foreach key $keys {
       dict set schema $key [dict create id $field_id type $value_type]
       if { $req } { dict set schema $key required $req }
-      if { $args ne {} } { dict set schema $key args $args }
+      if {$args ne {}} {
+        dict set schema $key args $args
+      }
     }
     dict set map $field_id $params
   }
@@ -135,7 +137,6 @@ set ::bpacket::value_ids [dict create \
   }
   set n 0; set sh 0
   while 1 {
-
     set b [expr {($byte >> $sh) & 127}]
     incr sh 7; incr n
     if {$byte >> $sh} {
@@ -170,26 +171,33 @@ set ::bpacket::value_ids [dict create \
   append tag [my uint64 $field_num] [my uint64 $wire_type]
   # TODO: Handle fields with the same value
   dict set FIELDS $field_num tag $tag
-  if { $args ne {} } {
+  if {$args ne {}} {
     switch -- $wire_type {
       0 { # Varint
         set args [lindex $args 0]
-        if { ! [string is entier -strict $args] } { throw error "varint must be entier value but got: $args" }
-        set value [ my uint64 [lindex $args 0] ]
+        if { ! [string is entier -strict $args] } {
+          throw error "varint must be entier value but got: $args"
+        }
+        set value [my uint64 [lindex $args 0]]
       }
       1 {
 
       }
       2 { # Length-Delimited Data
-        set value [ my string [lindex $args 0] ]
+        set value [my string [lindex $args 0]]
       }
       15 { # Boolean
-        set value [ my bool [lindex $args 0] ]
+        set value [my bool [lindex $args 0]]
       }
-      16 { # Flags - A list of varints prefixed by the list length.
-        if { [llength $args] == 1 } { set args [lindex $args 0] }
-        set values [ my uint64 [llength $args] ]
-        foreach n $args { lappend values [ my uint64 $n ] }
+      16 {
+        # Flags - A list of varints prefixed by the list length.
+        if {[llength $args] == 1} {
+          set args [lindex $args 0]
+        }
+        set values [my uint64 [llength $args]]
+        foreach n $args {
+          lappend values [ my uint64 $n ]
+        }
         set value [join $values {}]
       }
       17 - 18 {
@@ -197,26 +205,36 @@ set ::bpacket::value_ids [dict create \
               # 18 - Keyed Dictionary - $varint $value - where $varint is key
               #      This works similar to list except it is converted to a
               #      dictionary on the other end based on the given keys.
-        if { [llength $args] == 1 } { set args [lindex $args 0] }
-        set values [ my uint64 [llength $args] ]
-        foreach e $args { lappend values [ my string $e ] }
+        if { [llength $args] == 1 } {
+          set args [lindex $args 0]
+        }
+        set values [my uint64 [llength $args]]
+        foreach e $args {
+          lappend values [my string $e]
+        }
         set value [join $values {}]
       }
       19 { # Container - a container simply wraps values in a length-delimited
            #             fashion.
       }
       20 { # raw - Simply add the values to the packet
-        set value [ my bytes [lindex $args 0] ]
+        set value [my bytes [lindex $args 0]]
       }
       21 { # AES Encrypted with pre-shared key
           # TODO: Possibly encrypt the data using a configured
           #       encryption key.
-        set value [ my bytes [lindex $args 0] ]
+        set value [my bytes [lindex $args 0]]
       }
     }
     dict set FIELDS $field_num value $value
-  } else { set value {} }
-  if { $value ne {} } { return [format {%s%s} $tag $value] } else { return $tag }
+  } else {
+    set value {}
+  }
+  if { $value ne {} } {
+    return [format {%s%s} $tag $value]
+  } else {
+    return $tag
+  }
 }
 
 # convert packet to hex

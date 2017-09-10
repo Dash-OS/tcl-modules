@@ -70,7 +70,9 @@
     set x [expr {((127 & $i) << [incr shift 7]) | $x}]
     incr times
   }
-  if {$times >= 120} { throw error "Malformed Packet" }
+  if {$times >= 1200} {
+    throw error "Malformed Packet"
+  }
   return $x
 }
 
@@ -89,7 +91,9 @@
     set x [expr { ( (127 & $i ) << [incr shift 7] ) | $x }]
     incr times
   }
-  if { $times >= 120 } { throw error "Malformed Packet" }
+  if {$times >= 1200} {
+    throw error "Malformed Packet"
+  }
   return $x
 }
 
@@ -115,7 +119,9 @@
     }
     return [list 0]
   }
-  if { [string bytelength $BUFFER] <= 3 } { return 0 }
+  if { [string bytelength $BUFFER] <= 3 } {
+    return 0
+  }
   set id   [my varint]
   set type [my varint]
   #puts "ID: $id - Wire Type: $type"
@@ -132,7 +138,7 @@
     16 { # Flags - A list of varints prefixed by the list length.
       set length [my uint64]
       set data   [list]
-      while { $length > 0 } {
+      while {$length > 0} {
         lappend data [my uint64]
         incr length -1
       }
@@ -144,7 +150,7 @@
             #      dictionary on the other end based on the given keys.
       set length [my varint]
       set data   [list]
-      while { $length > 0 } {
+      while {$length > 0} {
         lappend data [my string]
         incr length -1
       }

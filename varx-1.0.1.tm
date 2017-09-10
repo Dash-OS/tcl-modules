@@ -1,20 +1,28 @@
 package require ensembled
 
-namespace eval ::varx { ensembled }
+namespace eval ::varx {ensembled}
 
-proc ::varx::variables args { ::foreach var $args { ::uplevel 1 [::list variable $var] } }
+proc ::varx::variables args {
+  ::uplevel 1 [::list ::foreach @@_var_@@ $args {
+    ::variable ${@@_var_@@}
+  }]
+}
 
-proc ::varx::define args { 
+proc ::varx::define args {
+  ::set defined [list]
   ::foreach var $args {
     ::upvar 1 $var v
-    ::if { ! [::info exists v] } { ::set v {} }
+    ::if {![::info exists v]} {
+      ::set v {}
+      ::lappend defined $var
+    }
   }
-  ::return $args
+  ::return $defined
 }
 
 proc ::varx::sets args {
   ::foreach {var val} $args {
-    ::upvar 1 $var ref 
+    ::upvar 1 $var ref
     ::set ref $val
   }
   ::return $args
@@ -22,15 +30,15 @@ proc ::varx::sets args {
 
 proc ::varx::switch args {
   ::set nocase 0; ::set next 0; ::set response {}
-  
+
   ::while {$args ne {}} {
     set args [lassign $args arg]
     ::if { ! [::string equal [::string index $arg 0] -] } {
-      ::if { ! [::info exists var] } { 
+      ::if { ! [::info exists var] } {
         ::set var $arg
-      } else { 
+      } else {
         ::set args [::concat $arg $args]
-        ::break 
+        ::break
       }
     } else {
       ::switch -- $arg {
@@ -40,16 +48,16 @@ proc ::varx::switch args {
       }
     }
   }
-  
-  ::if { [::info exists upvar] } {
+
+  ::if {[::info exists upvar]} {
     ::upvar 1 $var val
   } else { ::set val $var }
-  
+
   ::foreach { pattern response } $args {
-    ::if { $next } { 
-      ::if { $response eq "-" } { ::continue } else { 
+    ::if { $next } {
+      ::if { $response eq "-" } { ::continue } else {
         ::set val $response
-        ::return $response 
+        ::return $response
       }
     }
     ::if { $nocase ? [::string match -nocase $pattern $val] : [::string match $pattern $val] } {
@@ -67,7 +75,7 @@ proc ::varx::switch args {
 # set v 1
 # ::varx trace v myproc
 # set v 2
-proc ::varx::trace { var callback {value {}} } {
+proc ::varx::vtrace { var callback {value {}} } {
   ::upvar 1 $var current
   ::if {![::info exists current]} {::set current $value}
   ::uplevel 1 [::list ::trace add variable $var write [ ::namespace code [::list traceback $callback $current] ]]
@@ -112,8 +120,8 @@ proc ::varx::pipe args {
       ::if { [::llength $cmd] == 1 } { ::set cmd [::lindex $cmd 0] }
       ::set cmd    [ ::list ::try  [ ::list ::set $setter [::namespace current]::$cmd ] ]
       ::uplevel 1 $cmd
-      ::uplevel 1 { 
-        ::set ${___setter} [::try [::set ${___setter}] ] 
+      ::uplevel 1 {
+        ::set ${___setter} [::try [::set ${___setter}] ]
         ::unset ___setter
       }
     } else {
@@ -167,8 +175,5 @@ proc ::varx::is? {varName check} {
 
 proc ::varx::is {varName checks args} {
   ::upvar 1 $varName $varName
-  
+
 }
-
-
-
