@@ -11,9 +11,11 @@ Before we can encode/decode packets that `bpacket` will create for us, we need t
 > **Note:** As of writing this readme, asterix (required) values is not enforced by the package.  For now they will simply be ignored, however we do plan to add such enforcement in future version(s).
 
 bpacket supports various value types.  The template allows us to define
-how we will provide each value and how they will be formed.  
+how we will provide each value and how they will be formed.  At this time all values are completely optional.  
 
-|  Value Type  |  Description  |
+> **Tip:** Values can be encoded/decoded in any order
+
+|  Type  |  Description  |
 | :----------: |:----------- |
 | vint | a [varint](https://developers.google.com/protocol-buffers/docs/encoding#varints)-like value which packs entier values as tightly as possible. |
 | string | a utf-8 encoded string value |
