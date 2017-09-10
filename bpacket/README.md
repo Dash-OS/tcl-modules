@@ -14,7 +14,7 @@ bpacket supports various value types.  The template allows us to define
 how we will provide each value and how they will be formed.  
 
 |  Value Type  |  Description  |
-| :----------: | :-----------: |
+| :----------: |:----------- |
 | vint | a [varint](https://developers.google.com/protocol-buffers/docs/encoding#varints)-like value which packs entier values as tightly as possible. |
 | string | a utf-8 encoded string value |
 | bool | a boolean value |
