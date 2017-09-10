@@ -70,7 +70,9 @@ if 0 {
 proc ::sigsub::receive signal {
   if {$::sigsub::after_id eq {}} {
     set ::sigsub::after_id [after $::sigsub::delay [list \
-      ::apply [list {} {exit 0}]
+      ::apply [list {} {
+        exit 0
+      }] \
     ]]
   }
   try {
@@ -98,7 +100,9 @@ proc ::sigsub::interrupt {} {
     after cancel $::sigsub::after_id
     set ::sigsub::after_id {}
     return true
-  } else { return false }
+  } else {
+    return false
+  }
 }
 
 if 0 {
@@ -108,8 +112,9 @@ if 0 {
 }
 proc ::sigsub::register args {
   foreach signal $args {
-    ::signal add [string toupper $signal] [list \
-      ::apply [list signal {::sigsub::receive $signal} $signal]
+    ::signal add [string toupper $signal] [list ::apply [list {signal} {
+        ::sigsub::receive $signal
+      }] $signal
     ]
   }
 }
@@ -121,7 +126,9 @@ if 0 {
 proc ::sigsub::registerAsync args {
   foreach signal $args {
     ::signal add [string toupper $signal] [list \
-      ::apply [list signal {::sigsub::receive $signal} $signal]
+      ::apply [list signal {
+        ::sigsub::receive $signal
+      }] $signal \
     ] -async
   }
 }
