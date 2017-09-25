@@ -60,7 +60,7 @@ extend ::string {
   proc slugify str {
     ::set str [::string map { {?} {} {&} {=} {} {} {!} {} {.} {} {,} {} {$} {} {/} {} {#} {} {[} {} {]} {} } $str]
     ::return [::string tolower \
-      [::string map { { } {-} } [::string compact $str]
+      [::string map { { } {-} } [::string compact $str]]
     ]
   }
 
