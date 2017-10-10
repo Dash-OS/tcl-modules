@@ -125,8 +125,8 @@ if 0 {
     }
 
     chan configure $SOCK \
-      -translation lf \
-      -encoding    ascii \
+      -translation {auto crlf} \
+      -encoding    [dict get $CONFIG -encoding] \
       -buffering   line
 
     chan flush $SOCK

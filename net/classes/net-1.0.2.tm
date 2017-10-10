@@ -23,3 +23,11 @@ if 0 {
 ::oo::define ::net::class::Net method template {name config} {
   tailcall [self class] create $name $config
 }
+
+::oo::define ::net::class::Net method encode {data} {
+  tailcall ::net::urlencode $data
+}
+
+::oo::define ::net::class::Net method decode {data} {
+  tailcall ::net::urldecode $data
+}

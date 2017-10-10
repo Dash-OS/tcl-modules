@@ -146,23 +146,6 @@ proc ::net::init {} {
     ]
   }
 
-  # taken from http package - not currently being used at all.
-  # if {![info exists formMap]} {
-  #   # Set up the map for quoting chars. RFC3986 Section 2.3 say percent
-  #   # encode all except: "... percent-encoded octets in the ranges of
-  #   # ALPHA (%41-%5A and %61-%7A), DIGIT (%30-%39), hyphen (%2D), period
-  #   # (%2E), underscore (%5F), or tilde (%7E) should not be created by URI
-  #   # producers ..."
-  #   for {set i 0} {$i <= 256} {incr i} {
-  #     set c [format %c $i]
-  #     if {![string match {[-._~a-zA-Z0-9]} $c]} {
-  #       dict set formMap $c %[format %.2X $i]
-  #     }
-  #   }
-  #   # These are handled specially
-  #   dict set formMap \n %0D%0A
-  # }
-
   if {![info exists ::net::protocols]} {
     set ::net::protocols [dict create \
       http [list 80 socket]
@@ -623,7 +606,7 @@ proc ::net::urlencode args {
 }
 
 proc ::net::urldecode args {
-  rename ::net::urlencode {}
+  rename ::net::urldecode {}
   package require net::utils::urlencode
   tailcall ::net::urldecode {*}$args
 }

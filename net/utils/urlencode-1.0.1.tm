@@ -1,6 +1,11 @@
 # URL Encoder
-# ue encode $data
-# ue decode $data
+# ::net::urlencode encode $data
+# ::net::urldecode decode $data
+#
+# This is not included until it is called
+# for the first time.  Once called, it will
+# replace itself with the procs below.
+#
 namespace eval ::net {}
 
 variable ::net::encode_map {}
@@ -19,7 +24,7 @@ proc ::net::ueinit {} {
   }
   ::set ::net::encode_map $e
   ::set ::net::decode_map $d
-  ::rename ::ue::init {}
+  ::rename ::net::init {}
 }
 
 proc ::net::urlencode s {
