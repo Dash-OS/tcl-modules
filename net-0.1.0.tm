@@ -215,6 +215,7 @@ proc ::net::validate {url {config {}}} {
   if {$method ni $::net::METHODS} {
     tailcall return \
       -code error \
+      -errorCode [list HTTP VALIDATE INVALID_METHOD $method] \
       " unsupport method ${method}, should be one of $::net::METHODS"
   }
 
@@ -223,6 +224,7 @@ proc ::net::validate {url {config {}}} {
   if {![regexp -- $::net::validate_url_re $url -> proto user host port path]} {
     tailcall return \
       -code error \
+      -errorCode [list HTTP VALIDATE INVALID_URL_FORMAT]
       " unsupported URL format: $url"
   }
 
@@ -232,21 +234,32 @@ proc ::net::validate {url {config {}}} {
 	#       invalid, we'll simply fail to resolve it later on.
   set host [string trim $host {[]}]
   if {$host eq {}} {
-    tailcall return -code error " invalid host or invalid format: $url"
+    tailcall return \
+      -code error \
+      -errorCode [list HTTP VALIDATE INVALID_URL_FORMAT] \
+      " invalid host or invalid format: $url"
   }
 
   if {$port ne {} && $port > 65535 } {
-    tailcall return -code error " invalid port, ports should not be above 65535: $url"
+    tailcall return \
+      -code error \
+      -errorCode [list HTTP VALIDATE INVALID_PORT]
+      " invalid port, ports should not be above 65535: $url"
   }
 
   # The user identification and resource identification parts of the URL can
   # have encoded characters in them; take care!
   if {$user ne {} && [dict get $config -strict] && ![regexp -- $::net::validate_user_re $user]} {
     if {[regexp -- {(?i)%(?![0-9a-f][0-9a-f]).?.?} $user bad]} {
-      tailcall return -code error \
+      tailcall return \
+        -code error \
+        -errorCode [list HTTP VALIDATE ILLEGAL_CHARACTERS_IN_URL INVALID_USER_ENCODING] \
         " illegal encoding character usage \"$bad\" in URL user: $url"
     } else {
-      tailcall return -code error " illegal characters in URL user: $url"
+      tailcall return \
+        -code error \
+        -errorCode [list HTTP VALIDATE ILLEGAL_CHARACTERS_IN_USER] \
+        " illegal characters in URL user: $url"
     }
   }
 
@@ -259,10 +272,15 @@ proc ::net::validate {url {config {}}} {
     }
     if {[dict get $config -strict] && ![regexp -- $::net::validate_path_re $path]} {
       if {[regexp {(?i)%(?![0-9a-f][0-9a-f])..} $path bad]} {
-		    tailcall return -code error \
+		    tailcall return \
+          -code error \
+          -errorCode [list HTTP VALIDATE INVALID_FORMAT_URL_PATH] \
 		      " illegal encoding character usage \"$bad\" in URL path: $path"
 	    } else {
-        tailcall return -code error " illegal characters in URL path: $path"
+        tailcall return \
+          -code error \
+          -errorCode [list HTTP VALIDATE INVALID_FORMAT_URL_PATH] \
+          " illegal characters in URL path: $path"
       }
     }
   } else {
@@ -420,7 +438,8 @@ proc ::net::parse {response} {
     }
   }
 
-  # largely taken from rl_json https://github.com/RubyLane/rl_http/blob/master/rl_http-1.4.tm
+  # largely taken from rl_json
+  # Reference > https://github.com/RubyLane/rl_http/blob/master/rl_http-1.4.tm
   foreach eheader {transfer-encoding content-encoding} {
     if {[dict exists $headers $eheader]} {
       foreach enc [lreverse [dict get $headers $eheader]] {
@@ -597,6 +616,18 @@ proc ::net::config args {
   }
 }
 
+proc ::net::urlencode args {
+  rename ::net::urlencode {}
+  package require net::utils::urlencode
+  tailcall ::net::urlencode {*}$args
+}
+
+proc ::net::urldecode args {
+  rename ::net::urlencode {}
+  package require net::utils::urlencode
+  tailcall ::net::urldecode {*}$args
+}
+
 ::net::init
 
 # net call http://my.dashos.net/v1/myip.json
@@ -702,3 +733,6 @@ proc ::net::config args {
 # "75.84.148.45" | 177536 microseconds
 # "75.84.148.45" | 190034 microseconds
 # "75.84.148.45" | 192529 microseconds
+
+# net template POST -method POST -headers [list Content-Type application/json]
+# POST -body {{"foo": "bar"}}
