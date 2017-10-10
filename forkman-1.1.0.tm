@@ -1,6 +1,6 @@
 if 0 {
-  > forkit
-    | A background task manager combining various
+  > forkman
+    | A background forked process manager combining various
     | tcl-modules to provide a powerful api for managing
     | forked processes.
 
@@ -23,6 +23,11 @@ if 0 {
       -onComplete {meta {
         puts "Completed ID [dict get $meta -id]"
       }}
+
+    $manager -id three -every "10 seconds" -command {tail /tmp/log.txt} \
+      -onLine {{line meta} {
+        puts "$line"
+      }}
   }
 }
 
@@ -39,25 +44,32 @@ package require callback
   }
 
   method fork args {
+    if {![dict exists $args -command]} {
+      throw FORKMAN_NO_COMMAND \
+        "$forkman fork expects a -command argument but none was found"
+    }
+
     incr I
     set nargs [list]
+
+    set args [my GetID {*}$args]
+
     set cmd [dict get $args -command]
-    if {[dict exists $args -id]} {
-      set id [dict get $args -id]
-    } else {
-      set id fork#$I
-      dict set args -id $id
-    }
+    dict unset args -command
+
     if {[dict exists $args -onLine]} {
       lappend nargs -onLine [dict get $args -onLine]
       dict unset args -onLine
     }
+
     if {[dict exists $args -onComplete]} {
       lappend nargs -onComplete [dict get $args -onComplete]
       dict unset args -onComplete
     }
-    dict unset args -command
-    tailcall task {*}$args -command [callback my Execute $cmd {*}$args {*}$nargs]
+
+    tailcall task {*}$args -command [callback \
+      my Execute $cmd {*}$args {*}$nargs
+    ]
   }
 
   method cancel {id args} {
@@ -67,15 +79,26 @@ package require callback
   method Execute {cmd args} {
     set fd [open |[list {*}$cmd]]
 
-    dict set FORKS $fd [dict create {*}$args -command $cmd -manager [self]]
+    set id [dict get $args -id]
 
-    chan configure $fd -blocking 0 -buffering line
-    chan event $fd readable [callback my Read $fd]
+    dict set FORKS \
+      $id [dict create {*}$args -command $cmd -manager [self] -fd $fd]
+
+    chan configure $fd -blocking 0 -buffering line -translation binary -encoding binary
+    chan event $fd readable [callback my Read $fd $id]
   }
 
-  method Read fd {
-    # puts "Read $fd"
-    set meta [dict get $FORKS $fd]
+  method GetID args {
+    if {[dict exists $args -id]} {
+      set id [dict get $args -id]
+    } else {
+      set id fork#$I
+    }
+    return $args
+  }
+
+  method Read {fd id} {
+    set meta [dict get $FORKS $id]
     if {[dict exists $meta response]} {
       set response [dict get $meta response]
     } else {
@@ -114,5 +137,4 @@ package require callback
       }
     }
   }
-
 }

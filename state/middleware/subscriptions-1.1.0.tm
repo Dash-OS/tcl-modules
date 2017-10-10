@@ -29,7 +29,7 @@ package require coro
 		method subscribe { localID args } {
 			my variable subscription_containers
 			lappend subscription_containers $localID
-			[ my ref $localID ] subscribe [::state::parse::subscription $localID {*}$args]
+			[my ref $localID] subscribe [::state::parse::subscription $localID {*}$args]
 		}
 		method unsubscribe { localID {action {}} args } {
 			my variable subscription_containers
@@ -40,32 +40,31 @@ package require coro
 			}
 			if { $localID eq "-all" } {
 				foreach localID $subscription_containers {
-					[ my ref $localID ] unsubscribe $action {*}$args
+					[my ref $localID] unsubscribe $action {*}$args
 				}
 			} else {
-				[ my ref $localID ] unsubscribe $action {*}$args
+				[my ref $localID] unsubscribe $action {*}$args
 			}
 		}
 	}
 	container {
 		method subscribe { subscription } {
 			my variable MIDDLEWARES
-			[dict get $MIDDLEWARES onSnapshot subscriptions] subscribe $subscription
+			{*}[dict get $MIDDLEWARES onSnapshot subscriptions] subscribe $subscription
 		}
 		method unsubscribe {action args} {
 			my variable MIDDLEWARES
 			switch -- $action {
 				-kill {
-					[dict get $MIDDLEWARES onSnapshot subscriptions] unsubscribe {*}$args
+					{*}[dict get $MIDDLEWARES onSnapshot subscriptions] unsubscribe {*}$args
 				}
 				-pause {
-					[dict get $MIDDLEWARES onSnapshot subscriptions] pause {*}$args
+					{*}[dict get $MIDDLEWARES onSnapshot subscriptions] pause {*}$args
 				}
 				-resume {
-					[dict get $MIDDLEWARES onSnapshot subscriptions] resume {*}$args
+					{*}[dict get $MIDDLEWARES onSnapshot subscriptions] resume {*}$args
 				}
 			}
-
 		}
 	}
 }
@@ -87,7 +86,9 @@ module create ::state::middleware::subscriptions {
 			if { ! [dict exists $CONFIG bulk] && [dict exists $stateConfig bulk] } {
 				dict set CONFIG bulk [dict get $stateConfig bulk]
 			}
-		} else { set CONFIG $stateConfig }
+		} else {
+      set CONFIG $stateConfig
+    }
 		set SUBSCRIPTIONS    [dict create]
 		set SUBSCRIPTION_MAP [dict create]
 		set EVALUATIONS      [dict create]

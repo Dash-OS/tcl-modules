@@ -12,10 +12,15 @@ One of Tcl's best features is how flexible the language itself is.  Many of thes
 
 You may use any of these modules however you wish.
 
-##### **If you have any good ones that should be added - send them over!**
+> **If you have any good ones that should be added - send them over / pull requests more than welcome!**
 
-Would love to collect any other "awesome" and useful Tcl procs that you find yourself
-using and others may find useful.  
+Would love to collect any other "awesome" and useful Tcl procedures that you find yourself using and others may find useful.  
+
+## Auto Updated
+
+This repo is automatically maintained by our build system.  Any time that a file
+is changed, the bot will update the versioning based on the overall changes
+that have occurred in the file and by how much it is likely that it has changed.
 
 ## Installation
 
@@ -39,13 +44,16 @@ source /path/to/tm/include.tcl
 
 # Include any tcl modules
 package require react
+package require extend::dict
 
 # ... your script ... #
 ```
 
 ## Package Summaries
 
-I will try to provide a basic idea of some of the modules as time goes on.
+I will try to provide a basic idea of some of the modules as time goes on. The
+source for the modules will often include extra information & comments to aid in
+using the package(s).
 
 ### Table Of Contents
 
@@ -57,7 +65,6 @@ I will try to provide a basic idea of some of the modules as time goes on.
  - [run](#run-scoped-vars-level-script)
  - [pubsub](#pubsub-command-args)
  - [ensembled](#ensembled)
-
 
 ---
 

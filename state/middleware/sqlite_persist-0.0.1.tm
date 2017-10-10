@@ -1,8 +1,8 @@
 ####################
-# State Middleware 
-# 
+# State Middleware
+#
 #   The middleware mechanism provides an "extension" to the state.  These
-#   middlewares are registered similar to state registration.  Once registered 
+#   middlewares are registered similar to state registration.  Once registered
 #   it may be attached to any state within the app by its name.
 #
 #   state register MyState {} { middlewares {logger subscriptions} ... }
@@ -11,10 +11,10 @@
 #   most cases they will be expected to mutate values to their needs using upvar / uplevel.
 ####################
 
-# snapshot 
-# key integrationID set {integrationID ip state} items 
-# {ip {value 192.168.1.10 prev 192.168.1.3} state {value 1 prev 0}} 
-# changed {ip state} entryID 2 keys {ip state} refs 
+# snapshot
+# key integrationID set {integrationID ip state} items
+# {ip {value 192.168.1.10 prev 192.168.1.3} state {value 1 prev 0}}
+# changed {ip state} entryID 2 keys {ip state} refs
 # {entry ::Import::Modules::state::Containers::DeviceStream::Entries::2}
 package require sqlite3
 package require oo::module
@@ -27,45 +27,45 @@ package require state::helpers::merge_snapshot
 namespace eval db {}
 
 module create ::state::middleware::sqlite_persist {
-	
+
 	# Our static configuration prop (class variable)
 	::variable config {}
 	# Our instance variables
   variable CONTAINER ASYNC DB NAME QUEUE DELAY
-  
+
 	constructor { container stateConfig middlewareConfig } {
-	
+
 	  set CONTAINER $container
 	  set NAME      [namespace tail $container]
 	  set config    [prop config]
-	  
+
 	  if { $config eq {} } {
 	    puts "\n You must configure the Persist Middleware before using it"
 	    puts "import ConfigurePersist from \"state-persist-middleware\""
 	    puts "ConfigurePersist static configure \$config"
 	    throw error "state-persist-middleware requires configuration"
 	  }
-	  
+
 	  if { [dict exists $stateConfig persistAsync] } {
-	    set ASYNC [dict get $stateConfig persistAsync] 
+	    set ASYNC [dict get $stateConfig persistAsync]
 	  } elseif { [dict exists $config async] } {
-	    set ASYNC [dict get $config async] 
+	    set ASYNC [dict get $config async]
 	  } else { set ASYNC 1 }
-	  
+
 	  if { $ASYNC } {
-		  # How long should we wait for updates before persisting to 
+		  # How long should we wait for updates before persisting to
 		  # the database?  Any updates will reset the delay and will
 		  # be batched.
 	  	if { [dict exists $stateConfig persistDelay] } {
-		  	set DELAY [dict get $stateConfig persistDelay]	
+		  	set DELAY [dict get $stateConfig persistDelay]
 		  } elseif { [dict exists $config delay] } {
-				set DELAY [dict get $config delay]	
-		  } else { set DELAY 0 }	
+				set DELAY [dict get $config delay]
+		  } else { set DELAY 0 }
 		  set QUEUE [dict create]
 	  }
-	  
+
 	}
-	
+
 	# If out state gets destroyed, we will attempt to close the database
 	destructor {
 		if { [info exists QUEUE] } {
@@ -77,32 +77,32 @@ module create ::state::middleware::sqlite_persist {
 		}
 		static close $NAME
 	}
-	
-	# The state container will call this once the state has been registered and is 
-	# ready for further evaluation by the middleware.  At this time the state is 
+
+	# The state container will call this once the state has been registered and is
+	# ready for further evaluation by the middleware.  At this time the state is
 	# prepared to be set or modified - however, it will not generate snapshots until
 	# all middlewares have had a chance to run their onRegister method.
 	method onRegister { schema stateConfig } {
 	  if { [dict exists $stateConfig persistPath] } {
 	  	set path [dict get $stateConfig persistPath]
 	  } else { set path {} }
-	  
+
 	  set DB [ static createDB $NAME $schema $path ]
-	  
+
 	  set state [ static rehydrate $NAME $schema ]
-	  
+
 	  $CONTAINER sets $state
 	}
-	
-	# When a new snapshot is available for our state and we have defined the 
+
+	# When a new snapshot is available for our state and we have defined the
 	# "onSnapshot" method, we will receive a snapshot of the modifications that
-	# were made to the state.  
+	# were made to the state.
 	#
 	# There are a few ways that persistent may be handled based upon the settings
 	# provided on the state.  When we have set the persist to conduct "async batch"
-	# then our snapshots will be merged upon each change to the state so that we 
-	# only end up evaluating and saving to the database a maximum of once per 
-	# evaluation.  
+	# then our snapshots will be merged upon each change to the state so that we
+	# only end up evaluating and saving to the database a maximum of once per
+	# evaluation.
 	#
 	# In addition, we may have a delay attached for the batching which means that
 	# we will wait until a given item in the state has not been updated for $delay
@@ -113,7 +113,7 @@ module create ::state::middleware::sqlite_persist {
 			set keyValue [dict get $snapshot keyValue]
 			if { [dict exists $QUEUE $keyValue] } {
 				# If $keyValue already exists in our QUEUE then we need to batch its
-				# snapshot with our new snapshot, cancel the current callback, and 
+				# snapshot with our new snapshot, cancel the current callback, and
 				# reschedule a callback for the $DELAY period.
 				after cancel [dict get $QUEUE $keyValue after_id]
 				set snapshot [mergeSnapshots [dict get $QUEUE $keyValue snapshot] $snapshot]
@@ -129,34 +129,34 @@ module create ::state::middleware::sqlite_persist {
 			static SaveSnapshot $NAME $snapshot
 		}
 	}
-	
+
 	method ResolveAsyncSnapshot { keyValue } {
 		set snapshot [dict get $QUEUE $keyValue snapshot]
 		dict unset QUEUE $keyValue
 		static SaveSnapshot $NAME $snapshot
 	}
-	
+
 }
 
 
-# Attempt to close the database $name . 
+# Attempt to close the database $name .
 PersistMiddleware::static close { name } {
-	tailcall sqlite3 [namespace parent]::db::$name close	
+	tailcall sqlite3 [namespace parent]::db::$name close
 }
 
-# Creates our Databases within the modules db namespace.  This way we can 
+# Creates our Databases within the modules db namespace.  This way we can
 # keep all of the created database commands together and organized for later
 # aggregation as-needed.
 #
-# ::tcm::module::state-persist-middleware::db::$StateID eval ... 
+# ::tcm::module::state-persist-middleware::db::$StateID eval ...
 # 	The command will be returned to the instance so that it can call it easily
 #   as needed.
 PersistMiddleware::static createDB { name schema {path {}} } {
 	if { $path eq {} } { set path [dict get [set [namespace current]::config] path] }
 	set cmd [namespace parent]::db::${name}
-	
+
 	sqlite3 $cmd $path
-	
+
 	set localID [dict get $schema localID]
 
 	$cmd eval {CREATE table IF NOT EXISTS _META (
@@ -168,7 +168,7 @@ PersistMiddleware::static createDB { name schema {path {}} } {
 		VERSION  STRING,
 		UPDATED  TIMESTAMP
 	)}
-	
+
 	if { [$cmd exists {SELECT LOCAL_ID FROM _META WHERE LOCAL_ID=$localID}] } {
 		$cmd eval {SELECT * FROM _META WHERE LOCAL_ID=$localID} prevMeta {
 			if { [dict get $schema items] ne $prevMeta(ITEMS) } {
@@ -181,15 +181,15 @@ PersistMiddleware::static createDB { name schema {path {}} } {
 			break
 		}
 	}
-	
-	if { [info exists pMeta] } { 
-		set createTable [ RebuildSchema $cmd $name $schema $pMeta ] 
+
+	if { [info exists pMeta] } {
+		set createTable [ RebuildSchema $cmd $name $schema $pMeta ]
 	} else { set createTable 1 }
-	
-	if { $createTable } { 
-		$cmd eval [string cat [format {CREATE table IF NOT EXISTS "%s"} $name] ( [TableSchema $schema] )] 
+
+	if { $createTable } {
+		$cmd eval [string cat [format {CREATE table IF NOT EXISTS "%s"} $name] ( [TableSchema $schema] )]
 	}
-	
+
 	# When we have successfully built our table we will replace or add the data into our _META table.
 	$cmd eval [format {
 		INSERT OR REPLACE into _META
@@ -197,7 +197,7 @@ PersistMiddleware::static createDB { name schema {path {}} } {
 	} [dict get $schema localID]  [dict get $schema key]   [dict get $schema items] \
 		[dict get $schema required] [dict get $schema title] 1.0 [clock seconds]
 	]
-	
+
 	return $cmd
 }
 
@@ -217,22 +217,24 @@ proc TableSchema { schema } {
 # that we can then use to build a new table or add new columns into the schema
 # if necessary.
 #
-# Our first check will check the new "required" items within the state and check to 
+# Our first check will check the new "required" items within the state and check to
 # make sure our schema indicates that we have all of those columns available.
 proc RebuildSchema { cmd name schema prevMeta } {
 	set newIDs [dict get $schema ids]
 	set keyID  [dict get $schema key]
-	set newRequired [dict get $schema required]
+	set newRequired   [dict get $schema required]
 	set transferrable [concat $newRequired $keyID]
-	set transferred 0
-	
-	if { [ $cmd eval { select name from sqlite_master where type = 'table' and name = $name } ] ne {} } {
+	set transferred false
+
+	if {[$cmd eval {
+    select name from sqlite_master where type = 'table' and name = $name
+  }] ne {}} {
 		# When a previous table exists we need to make sure that we will be able to transfer the
-		# previous schema to the old.  If we can't transfer the data then we need to remove the 
-		# data all together. 
+		# previous schema to the old.  If we can't transfer the data then we need to remove the
+		# data all together.
 		#
-		# We look at the actual columns set on the table rather than _META to be sure there are not 
-		# any corruptions or disconnects that have somehow happened from the _META table. 
+		# We look at the actual columns set on the table rather than _META to be sure there are not
+		# any corruptions or disconnects that have somehow happened from the _META table.
 		$cmd eval [format {PRAGMA table_info('%s')} $name] column {
 			set transferrable [lsearch -all -inline -not -exact $transferrable $column(name)]
 		}; unset column
@@ -249,8 +251,8 @@ proc RebuildSchema { cmd name schema prevMeta } {
 			#
 			# We do this by first creating a new table, building the new schema that will be used
 			# then transfer matching keys over to the new table.  Any keys which are no longer apart
-			# of the schema will be removed. 
-			set transferred 1
+			# of the schema will be removed.
+			set transferred true
 			try {
 				$cmd transaction {
 					$cmd eval [format {DROP TABLE IF EXISTS "%s_worker"} $name]
@@ -259,11 +261,11 @@ proc RebuildSchema { cmd name schema prevMeta } {
 						set i 0
 						foreach column $row(*) {
 							if { $column in $newIDs } {
-								if { [info exists values] } { 
-									append values {, } 
+								if { [info exists values] } {
+									append values {, }
 									append keys   {, }
 								}
-								if { $column in $newRequired && $row($column) eq {} } { 
+								if { $column in $newRequired && $row($column) eq {} } {
 									# This means that an item which was optional and is now required
 									# does not exist.  In this case we currently will delete the data
 									# and start over.
@@ -283,17 +285,21 @@ proc RebuildSchema { cmd name schema prevMeta } {
 					$cmd eval [format {ALTER TABLE "%s_worker" RENAME TO "%s"} $name $name]
 				}
 			} on error {result options} {
-				# Warning for now so we don't get confused if data is not where we think it 
+				# Warning for now so we don't get confused if data is not where we think it
 				# should be.
 				puts "\[state-db-persist\]: Could Not Transfer State: $result"
-				set transferred 0
+				set transferred false
 			}
-		} else { throw error "NOT TRANSFERRABLE" }
+		} else {
+      throw STATE_SQL_NOT_TRANSFERRABLE "NOT TRANSFERRABLE"
+    }
 	}
-	# When a successful transfer was made, we will return 0 to tell the caller we do not
+	# When a successful transfer was made, we will return false to tell the caller we do not
 	# need them to create a new table.
-	if { $transferred } { return 0 }
-	# When we have determined that the state can not be transferred to the new schema, we 
+	if { $transferred } {
+    return false
+  }
+	# When we have determined that the state can not be transferred to the new schema, we
 	# need to determine what should be done with the previous values.
 	#
 	# TO DO : Provide configuration to allow for saving or backing up the data to a different
@@ -301,20 +307,20 @@ proc RebuildSchema { cmd name schema prevMeta } {
 	#
 	# - For Now we will simply remove the table all together in this case.
 	$cmd eval [format {DROP TABLE IF EXISTS "%s"} $name]
-	return 1
+	return true
 }
 
-PersistMiddleware::static SaveSnapshot { name snapshot {new 1} } {
+PersistMiddleware::static SaveSnapshot { name snapshot {new true} } {
 	set cmd [namespace parent]::db::$name
 	set items [dict withKey [dict get $snapshot items] value]
-	
+
 	set keyID [dict get $snapshot keyID]
 	set keyValue [dict get $snapshot keyValue]
 
 	# When we are saving a snapshot for the first time we need to check if the
-	# row exists or not.  If it does not then we need to create it. 
+	# row exists or not.  If it does not then we need to create it.
 	#
-	# We need to take extra care to insure that we don't accidentally "inject" 
+	# We need to take extra care to insure that we don't accidentally "inject"
 	# sql into the evaluation (or via a sql attack).
   set i 0
   $cmd transaction {
@@ -340,7 +346,7 @@ PersistMiddleware::static SaveSnapshot { name snapshot {new 1} } {
 }
 
 PersistMiddleware::static eval { name args } {
-	tailcall sqlite3 [namespace parent]::db::$name eval {*}$args	
+	tailcall sqlite3 [namespace parent]::db::$name eval {*}$args
 }
 
 # Called to rehydrate the state using the database value (if it exists). We select
@@ -365,7 +371,7 @@ PersistMiddleware::static rehydrate { name schema } {
 PersistMiddleware::static configure { args } {
 	variable config
   dict with args {}
-  
+
   # We require the path that should be used to save our databases.  Each
   # state container will have its own database file.
   if { ! [info exists -db] } {
@@ -376,28 +382,28 @@ PersistMiddleware::static configure { args } {
     dict set config path [file nativename [set -db]]
     file mkdir [file dirname [set -db]]
   }
-  
+
   # Global async setting.  This will set the default to either synchronous
   # or asynchronous when we save our snapshots into the database.
   if { [info exists -async] } {
-    dict set config async [set -async] 
+    dict set config async [set -async]
   }
-  
+
   # A command to be invoked during rehydration and saving of the state
-  # to allow transforming before we save it.  For example, to allow for 
+  # to allow transforming before we save it.  For example, to allow for
   # encryption.
   if { [info exists -command] } {
   	dict set config command [set -command]
   }
-  
+
   if { [info exists -delay] } {
-		dict set config delay [set -delay]	
+		dict set config delay [set -delay]
   }
-  
+
   # Do we want to load extensions for the db?
   if { [info exists -extensions] && [string is true -strict [set -extensions]] } {
 		sqlite3 enable_load_extensions 1
   }
-  
+
   set [namespace current]::config $config
 }

@@ -10,7 +10,7 @@
 
   if { [dict exists $schema config] } {
     set CONFIG [dict get $schema config]
-    
+
     dict unset schema config
   } else { set CONFIG [dict create] }
   if { [dict exists $CONFIG shared] } {
@@ -23,13 +23,13 @@
   if { $KEY eq {} } { set KEY "@@S" ; set SINGLETON 1 } else { set SINGLETON 0 }
   my CreateItems
   if { [dict exists $SCHEMA default] && $KEY eq "@@S" } {
-    # Default is only available for singleton state and it is 
+    # Default is only available for singleton state and it is
     # applied before middlewares.
     my set [dict get $SCHEMA default]
     dict unset SCHEMA default
   }
   my ApplyMiddlewares
-  
+
 }
 
 ::oo::define ::state::Container destructor {
@@ -53,7 +53,7 @@
   lappend ENTRIES $entryID
 }
 
-::oo::define ::state::Container method prop { what {value {}} } { 
+::oo::define ::state::Container method prop { what {value {}} } {
   set what [string toupper $what]
   if { ! [info exists $what] } {
     throw error "Property $what does not exist in [self]"
@@ -89,9 +89,9 @@
   set onregisters [list]
   if { [dict exists $SCHEMA middlewares] } {
     set MiddlewareRegistry [::state::middlewares]
-    
+
     foreach middlewareID [dict get $SCHEMA middlewares] {
-      if { [info command middlewares::$middlewareID] ne {} } { 
+      if { [info command middlewares::$middlewareID] ne {} } {
         # Middleware alraedy applied.
         continue
       }
@@ -99,28 +99,28 @@
       set MiddlewareClass  [dict get $Middleware middleware]
       set MiddlewareConfig [dict get $Middleware config]
       set MiddlewareMixins [dict get $Middleware mixins]
-      
+
       set instance [$MiddlewareClass create middlewares::$middlewareID [self] $CONFIG $MiddlewareConfig]
       set methods [info class methods $MiddlewareClass]
-      
+
       if { "onSnapshot" in $methods } {
         dict set MIDDLEWARES onSnapshot $middlewareID $instance
       }
-      
+
       if { [dict exists $MiddlewareMixins container] } {
         ::oo::objdefine [self] mixin -append [dict get $MiddlewareMixins container]
       }
-      
+
       if { [dict exists $MiddlewareMixins item] } {
         set mixin [dict get $MiddlewareMixins item]
-        foreach itemID $ITEMS { ::oo::objdefine items::$itemID mixin -append $mixin } 
+        foreach itemID $ITEMS { ::oo::objdefine items::$itemID mixin -append $mixin }
       }
       if { "onRegister" in $methods } {
         lappend onregisters [list $middlewareID $instance]
       }
     }
   }
-  foreach middleware $onregisters { 
+  foreach middleware $onregisters {
     lassign $middleware middlewareID instance
     {*}$instance onRegister $SCHEMA $CONFIG
   }
