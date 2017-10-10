@@ -3,6 +3,9 @@ if 0 {
   > This is not yet functional and should not be used.
 }
 
+# net - this is a replacement for the http package with an
+#       emphasis on performance, reuseability, and efficiency.
+
 # used for prop validation
 # package require proptypes
 
