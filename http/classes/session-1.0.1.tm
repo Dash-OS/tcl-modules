@@ -29,7 +29,7 @@ if 0 {
       after cancel $id
     }
     if {[info command [self namespace]::runner] ne {}} {
-      [self namespace]::runner CLOSING
+      catch { [self namespace]::runner CLOSING }
       rename [self namespace]::runner {}
     }
   }
