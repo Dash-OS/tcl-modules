@@ -8,12 +8,17 @@ if 0 {
 ::oo::define ::net::class::Session {
   variable CONFIG RAW_URL URL ADDRESS PROTOCOL PATH HOST
   variable REQUEST RESPONSE
-  variable SOCK STATUS
+  variable STATE SOCK STATUS
   variable TIMEOUTS
 
   constructor args {
+    # any [after] id's that should be cancelled
+    # when we are removed.
     set TIMEOUTS [dict create]
     set RESPONSE [dict create]
+    # $STATE is temporary, right now only used
+    # to store error messages
+    set STATE    [dict create]
     set REQUEST  [list]
     set SOCK     {}
 
@@ -134,8 +139,10 @@ if 0 {
   lassign $args cmd
 
   set self [info coroutine]
-  after 0 $self
+
+  dict set TIMEOUTS startRunner [after 0 $self]
   yield $self
+  dict unset TIMEOUTS startRunner
 
   set SOCK [try $cmd on error {result options} {
     # puts "ERROR OPENING SOCKET!: $result"
@@ -174,24 +181,12 @@ if 0 {
         my Status CONNECTED
         my SendRequest
       }
-      DATA {
-        # TODO: handle chunk sizing
-        set data [read $SOCK]
-        dict append RESPONSE data $data
-
-        # This is just a temporary handling while testing,
-        # need to analyze the best method for handling
-        # keep alive sockets and the like.
-        if {[chan eof $SOCK]} {
-          chan close $SOCK
-          set RESPONSE [::net::parse $RESPONSE]
-          my Status COMPLETE
-        }
-      }
       HEADER {
         while {![chan eof $SOCK] && [chan gets $SOCK header] >= 0} {
           set header [string trim $header]
           if {$header eq {}} {
+            # HEADER parsing has completed, change the event to report
+            # to our DATA handler.
             chan configure $SOCK -buffering full -translation binary
             chan event $SOCK readable [list [info coroutine] DATA]
             break
@@ -210,6 +205,20 @@ if 0 {
               [string tolower [string range $header 0 [expr {$colonIdx - 1}]]] \
               [string trim [string range $header [expr {$colonIdx + 1}] end]]
           }
+        }
+      }
+      DATA {
+        # TODO: handle chunk sizing
+        set data [read $SOCK]
+        dict append RESPONSE data $data
+
+        # This is just a temporary handling while testing,
+        # need to analyze the best method for handling
+        # keep alive sockets and the like.
+        if {[chan eof $SOCK]} {
+          chan close $SOCK
+          set RESPONSE [::net::parse $RESPONSE]
+          my Status COMPLETE
         }
       }
       default {

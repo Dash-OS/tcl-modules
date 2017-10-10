@@ -14,7 +14,6 @@ if 0 {
 }
 
 ::oo::define ::net::class::Net method call {url args} {
-  # set ::START [clock microseconds]
   set config [dict merge $CONFIG $args]
   set sessionID [self]#[incr I]
   tailcall ::net::class::Session create \
