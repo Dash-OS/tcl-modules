@@ -25,6 +25,23 @@ namespace eval net {
 
   # Holds default values that will be used when others have not been
   # defined by the user.  This can be modified by calling [http config]
+  #
+  # configurations are passed down through our session process.
+  #
+  # $::net::config
+  # -> $Template::CONFIG
+  #  -> $Session::CONFIG
+  #    -> Transforms
+  #
+  # You can easily set the global defaults for all calls by calling
+  # [net::config ...args], but be careful as it may affect others within
+  # the script.
+  #
+  # Otherwise you may create a [net template $NAME ...TemplateConfig] then
+  # $NAME call ...SessionConfig
+  #
+  # By default a template is created with no configuration and saved as
+  # a command "net"
   variable config
 
   variable encodings [string tolower [encoding names]]
@@ -65,7 +82,6 @@ namespace eval net {
     (?: \? (?: [-\w.~!$&'()*+,;=:@/?] | %[0-9a-f][0-9a-f] )* )?
     $
 	}
-
 }
 
 namespace eval ::net::sessions {
@@ -75,7 +91,6 @@ namespace eval ::net::sessions {
       | TclOO Objects.  They can easily be listed by calling
       | [info commands ::net::sessions::*] and iterate through
       | them.
-
   }
 }
 
@@ -128,21 +143,22 @@ proc ::net::init {} {
     ]
   }
 
-  if {![info exists formMap]} {
-    # Set up the map for quoting chars. RFC3986 Section 2.3 say percent
-    # encode all except: "... percent-encoded octets in the ranges of
-    # ALPHA (%41-%5A and %61-%7A), DIGIT (%30-%39), hyphen (%2D), period
-    # (%2E), underscore (%5F), or tilde (%7E) should not be created by URI
-    # producers ..."
-    for {set i 0} {$i <= 256} {incr i} {
-      set c [format %c $i]
-      if {![string match {[-._~a-zA-Z0-9]} $c]} {
-        dict set formMap $c %[format %.2X $i]
-      }
-    }
-    # These are handled specially
-    dict set formMap \n %0D%0A
-  }
+  # taken from http package - not currently being used at all.
+  # if {![info exists formMap]} {
+  #   # Set up the map for quoting chars. RFC3986 Section 2.3 say percent
+  #   # encode all except: "... percent-encoded octets in the ranges of
+  #   # ALPHA (%41-%5A and %61-%7A), DIGIT (%30-%39), hyphen (%2D), period
+  #   # (%2E), underscore (%5F), or tilde (%7E) should not be created by URI
+  #   # producers ..."
+  #   for {set i 0} {$i <= 256} {incr i} {
+  #     set c [format %c $i]
+  #     if {![string match {[-._~a-zA-Z0-9]} $c]} {
+  #       dict set formMap $c %[format %.2X $i]
+  #     }
+  #   }
+  #   # These are handled specially
+  #   dict set formMap \n %0D%0A
+  # }
 
   if {![info exists ::net::protocols]} {
     set ::net::protocols [dict create \
@@ -176,13 +192,13 @@ proc ::net::validate {url {config {}}} {
   #  | This transform allows a template a chance to
   #  | modify the configuration which will be used to
   #  | setup our session.
-  if {[dict exists $config -transforms request validate start]} {
-    try [dict get $config -transforms request validate start] on error {result} {
-      tailcall return \
-        -code error \
-        -errorCode [list HTTP REQUEST_VALIDATE TRANSFORM]
-    }
-  }
+  # if {[dict exists $config -transforms request validate start]} {
+  #   try [dict get $config -transforms request validate start] on error {result} {
+  #     tailcall return \
+  #       -code error \
+  #       -errorCode [list HTTP REQUEST_VALIDATE TRANSFORM]
+  #   }
+  # }
 
   if {[dict exists $config -query]} {
     dict set config -body [dict get $config -query]
@@ -238,7 +254,6 @@ proc ::net::validate {url {config {}}} {
     if {[string index $path 0] ne "/"} {
       set path /$path
     }
-
     if {[dict get $config -strict] && ![regexp -- $::net::validate_path_re $path]} {
       if {[regexp {(?i)%(?![0-9a-f][0-9a-f])..} $path bad]} {
 		    tailcall return -code error \
@@ -271,8 +286,10 @@ proc ::net::validate {url {config {}}} {
     if {![catch {{*}[dict get $config -proxyfilter] $host} proxy]} {
       lassign $proxy phost pport
     } else {
-      tailcall return -code error \
-        " -proxyfilter value is not a callable command: [dict get $config -proxyfilter]"
+      tailcall return \
+        -code error \
+        -errorCode [list HTTP VALIDATE PROXY_FILTER_ERROR] \
+        " -proxyfilter value is not a callable command: [dict get $config -proxyfilter] | $proxy"
     }
   }
 
@@ -286,9 +303,7 @@ proc ::net::validate {url {config {}}} {
     append host : $port
   }
 
-  append url $host
-
-  append url $path
+  append url $host $path
 
   if {[info exists phost] && $phost ne {}} {
     set address [list $phost $pport]
@@ -355,6 +370,8 @@ proc ::net::validate {url {config {}}} {
 
   dict set config -headers $headers
 
+  # this is the object which our "end" transform may modify
+  # before the session implements its values into its configuration.
   set request [dict create \
     HOST     $host \
     URL      $url \
@@ -369,18 +386,19 @@ proc ::net::validate {url {config {}}} {
   #  | request if needed.
   #  | This could result in malformed headers and other issues
   #  | use with care.
-  if {[dict exists $config -transforms request validate end]} {
-    try [dict get $config -transforms request validate end] on error {result} {
-      tailcall return \
-        -code error \
-        -errorCode [list HTTP REQUEST_VALIDATE TRANSFORM_END]
-    }
-  }
+  # if {[dict exists $config -transforms request validate end]} {
+  #   try [dict get $config -transforms request validate end] on error {result} {
+  #     tailcall return \
+  #       -code error \
+  #       -errorCode [list HTTP REQUEST_VALIDATE TRANSFORM_END]
+  #   }
+  # }
 
   return $request
 }
 
 proc ::net::parse {response} {
+  # parse a net response
   set headers [dict get $response headers]
   set state   [dict get $response state]
   set data    [dict get $response data]
@@ -507,6 +525,15 @@ proc ::net::ReadChunked data {
   }
 
   return $buffer
+}
+
+# number of open sessions or a list of all sessions if -inline is given
+proc ::net::sessions args {
+  if {"-inline" in $args} {
+    tailcall info commands [namespace current]::sessions::*
+  } else {
+    tailcall llength [info commands [namespace current]::sessions::*]
+  }
 }
 
 if 0 {

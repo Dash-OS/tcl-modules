@@ -66,8 +66,7 @@ if 0 {
 
 ::oo::define ::net::class::Session method Open {} {
   my Status OPENING
-  set cmd [lindex $PROTOCOL 1]
-  lappend cmd -async
+  lappend cmd [lindex $PROTOCOL 1] -async
   if {[dict exists $CONFIG -myaddr]} {
     lappend cmd -myaddr [dict get $CONFIG -myaddr]
   }
@@ -131,16 +130,24 @@ if 0 {
       -buffering   line
 
     chan flush $SOCK
+  } else {
+    tailcall return \
+      -code error \
+      -errorCode [list HTTP SESSION SEND_REQUEST SOCKET_NOT_FOUND] \
+      " tried to send a request to a socket which does not exist or has not yet been opened."
   }
 }
 
 ::oo::define ::net::class::Session method Runner args {
   my Status CONNECTING
+
   lassign $args cmd
 
   set self [info coroutine]
 
-  dict set TIMEOUTS startRunner [after 0 $self]
+  # At this point the user will receive the session and
+  # our login will move into the asynchronous world.
+  dict set   TIMEOUTS startRunner [after 0 $self]
   yield $self
   dict unset TIMEOUTS startRunner
 
@@ -168,7 +175,7 @@ if 0 {
   }
 
   while {$STATUS ni [list CLOSED ERROR TIMEOUT]} {
-    set args [yield [info coroutine]]
+    set args  [yield [info coroutine]]
     switch -- [lindex $args 0] {
       CLOSING {
         # when we are being closed / removed
@@ -211,7 +218,6 @@ if 0 {
         # TODO: handle chunk sizing
         set data [read $SOCK]
         dict append RESPONSE data $data
-
         # This is just a temporary handling while testing,
         # need to analyze the best method for handling
         # keep alive sockets and the like.
