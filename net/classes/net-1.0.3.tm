@@ -20,8 +20,14 @@ if 0 {
     ::net::sessions::$sessionID $url $config
 }
 
-::oo::define ::net::class::Net method template {name config} {
-  tailcall [self class] create $name $config
+::oo::define ::net::class::Net method template {name args} {
+  if {[llength $args] == 1} {
+    # since no config values have a single element, this is
+    # either invalid or it was sent as a dict rather than
+    # as args, unpack the element...
+    lassign $args args
+  }
+  tailcall [self class] create $name $args
 }
 
 ::oo::define ::net::class::Net method encode {data} {
