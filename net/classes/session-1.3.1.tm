@@ -195,11 +195,13 @@ if 0 {
   if {$status ne $STATUS} {
     set STATUS $status
     ## TODO: Change this to the planned / better event dispatch
-    if {[dict exists $CONFIG -command]} {
-      try {
-        {*}[dict get $CONFIG -command] [self]
-      } on error {result options} {
-        puts stderr "onCommand Error: $result"
+    if {$STATUS eq "COMPLETE"} {
+      if {[dict exists $CONFIG -command]} {
+        try {
+          {*}[dict get $CONFIG -command] [self]
+        } on error {result options} {
+          puts stderr "onCommand Error: $result"
+        }
       }
     }
     if {[dict exists $CONFIG -onEvent]} {
@@ -451,12 +453,12 @@ proc netcb {session args} {
 
 proc testnet {} {
   set ::START [clock microseconds]
-  net call http://my.dashos.net/myip.json -command ::netcb
+  net call http://my.dashos.net/v1/myip.json -command ::netcb
 }
 
 proc testhttp {} {
   set ::START [clock microseconds]
-  http::geturl http://my.dashos.net/myip.json -command ::httpcb
+  http::geturl http://my.dashos.net/v1/myip.json -command ::httpcb
 }
 
 
