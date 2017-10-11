@@ -75,7 +75,6 @@ if 0 {
 }
 
 ::oo::define ::net::class::Session method wait args {
-  puts "Wait! [info coroutine]"
   if {[info coroutine] ne {}} {
     # If we are within a coroutine then [wait] can
     # forego the need to create nested vwaits
@@ -271,17 +270,16 @@ if 0 {
 ::oo::define ::net::class::Session method Runner args {
   lassign $args cmd
   set waiters [list]
-  set self [info coroutine]
 
   # At this point the user will receive the session and
   # our login will move into the asynchronous world.
-  dict set TIMEOUTS startRunner [after 0 $self [list CONTINUE]]
+  dict set TIMEOUTS startRunner [after 0 [info coroutine] [list CONTINUE]]
 
   while {"CONTINUE" ni $args} {
     if {"WAIT" in $args} {
       lappend waiters [lindex $args 1]
     }
-    set args [yield $self]
+    set args [yield [info coroutine]]
   }
 
   my Status CONNECTING
@@ -314,7 +312,6 @@ if 0 {
       set args  [yield [info coroutine]]
       switch -- [lindex $args 0] {
         WAIT {
-          puts "WAIT! $args"
           if {$STATUS eq "COMPLETE"} {
             [lindex $args 1] $RESPONSE
           } else {
