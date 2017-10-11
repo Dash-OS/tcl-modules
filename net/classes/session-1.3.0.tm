@@ -436,3 +436,32 @@ if 0 {
 # }
 #
 # proc spawncoros
+
+proc httpcb {token args} {
+  set data [::http::data $token]
+  set ::STOP [clock microseconds]
+  puts "$data | [expr {$::STOP - $::START}] microseconds"
+}
+
+proc netcb {session args} {
+  set data [$session response data]
+  set ::STOP [clock microseconds]
+  puts "$data | [expr {$::STOP - $::START}] microseconds"
+}
+
+proc testnet {} {
+  set ::START [clock microseconds]
+  net call http://my.dashos.net/myip.json -command ::netcb
+}
+
+proc testhttp {} {
+  set ::START [clock microseconds]
+  http::geturl http://my.dashos.net/myip.json -command ::httpcb
+}
+
+
+proc startnet {} {
+  testnet
+  after 5000 { set ::i 0 }
+  vwait ::i
+}
