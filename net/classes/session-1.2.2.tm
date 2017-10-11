@@ -31,9 +31,6 @@ if 0 {
       after cancel $id
     }
   }
-  if {[namespace exists [namespace current]::waiters]} {
-
-  }
   if {[info command [self namespace]::runner] ne {}} {
     # alert the runner that we are closing
     catch { [self namespace]::runner CLOSING }
@@ -45,6 +42,7 @@ if 0 {
   # Just to be sure, close the socket if for any reason
   # it did not get handled by the runner.
   my Close
+  # Once
 }
 
 ::oo::define ::net::class::Session method Initialize {} {
@@ -101,19 +99,6 @@ if 0 {
     } else {
       return $RESPONSE
     }
-  }
-}
-
-::oo::define ::net::class::Session method Wait args {
-  if {[llength $args]} {
-    lassign $args pcoro
-  }
-
-  yield [info coroutine]
-  set response [yield]
-
-  if {[info exists pcoro]} {
-    $pcoro $response
   }
 }
 
@@ -209,6 +194,14 @@ if 0 {
 ::oo::define ::net::class::Session method Status {status args} {
   if {$status ne $STATUS} {
     set STATUS $status
+    ## TODO: Change this to the planned / better event dispatch
+    if {[dict exists $CONFIG -command]} {
+      try {
+        {*}[dict get $CONFIG -command] [self]
+      } on error {result options} {
+        puts stderr "onCommand Error: $result"
+      }
+    }
     if {[dict exists $CONFIG -onEvent]} {
       try {
         # run the event from the callers scope
