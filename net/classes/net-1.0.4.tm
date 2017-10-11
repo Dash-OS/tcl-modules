@@ -15,9 +15,13 @@ if 0 {
 
 ::oo::define ::net::class::Net method call {url args} {
   set config [dict merge $CONFIG $args]
-  set sessionID [self]#[incr I]
+  set sessionID [my nextid]
   tailcall ::net::class::Session create \
-    ::net::sessions::$sessionID $url $config
+    ::net::sessions::$sessionID [self] $url $config
+}
+
+::oo::define ::net::class::Net method nextid {} {
+  return [self]#[incr I]
 }
 
 ::oo::define ::net::class::Net method template {name args} {

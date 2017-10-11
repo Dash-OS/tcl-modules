@@ -22,10 +22,6 @@ namespace eval net {
 
   variable protocols
 
-  # When init is called, it checks to see if these values
-  # exist.  If they do it will not change their values.
-  variable formMap
-
   # Holds default values that will be used when others have not been
   # defined by the user.  This can be modified by calling [http config]
   #
@@ -46,9 +42,9 @@ namespace eval net {
   # By default a template is created with no configuration and saved as
   # a command "net"
   variable config
+}
 
-  variable encodings [string tolower [encoding names]]
-
+namespace eval ::net::regexp {
   variable validate_url_re {(?x)	# this is _expanded_ syntax
     ^
     (?: (\w+) : ) ?			# <protocol scheme>
@@ -107,6 +103,15 @@ namespace eval ::net::class {
 
 package require net::classes::net
 package require net::classes::session
+
+if 0 {
+  @ ::net::http @
+    | This can be called to "polyfill" the built-in http package.  It will
+    | attempt to make any [::http::*] calls compatible with [net]
+}
+proc ::net::http {} {
+  package require net::utils::polyfill
+}
 
 proc ::net::init {} {
   variable formMap
@@ -167,6 +172,7 @@ proc ::net::init {} {
   return
 }
 
+
 proc ::net::geturl args {tailcall http call {*}$args}
 
 proc ::net::validate {url {config {}}} {
@@ -204,7 +210,7 @@ proc ::net::validate {url {config {}}} {
 
   dict set config -method $method
 
-  if {![regexp -- $::net::validate_url_re $url -> proto user host port path]} {
+  if {![regexp -- $::net::regexp::validate_url_re $url -> proto user host port path]} {
     tailcall return \
       -code error \
       -errorCode [list HTTP VALIDATE INVALID_URL_FORMAT]
@@ -232,7 +238,7 @@ proc ::net::validate {url {config {}}} {
 
   # The user identification and resource identification parts of the URL can
   # have encoded characters in them; take care!
-  if {$user ne {} && [dict get $config -strict] && ![regexp -- $::net::validate_user_re $user]} {
+  if {$user ne {} && [dict get $config -strict] && ![regexp -- $::net::regexp::validate_user_re $user]} {
     if {[regexp -- {(?i)%(?![0-9a-f][0-9a-f]).?.?} $user bad]} {
       tailcall return \
         -code error \
@@ -253,7 +259,7 @@ proc ::net::validate {url {config {}}} {
     if {[string index $path 0] ne "/"} {
       set path /$path
     }
-    if {[dict get $config -strict] && ![regexp -- $::net::validate_path_re $path]} {
+    if {[dict get $config -strict] && ![regexp -- $::net::regexp::validate_path_re $path]} {
       if {[regexp {(?i)%(?![0-9a-f][0-9a-f])..} $path bad]} {
 		    tailcall return \
           -code error \
