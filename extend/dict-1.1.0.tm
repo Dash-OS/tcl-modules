@@ -2,62 +2,86 @@ package require extend
 
 extend ::dict {
 
-  proc isDict {var} { 
-    if { [::catch {::dict size ${var}}] } {::return 0} else {::return 1} 
+  proc isDict {var} {
+    if {[::catch {::dict size ${var}}]} {
+      ::return 0
+    } else {
+      ::return 1
+    }
   }
-  
+
   proc get? {tempDict key args} {
     if {[::dict exists $tempDict $key {*}$args]} {
       ::return [::dict get $tempDict $key {*}$args]
     }
   }
-  
+
   proc pull {var args} {
     ::upvar 1 $var check
-    if { [::info exists check] } {
+    if {[::info exists check]} {
       ::set d $check
-    } else { ::set d $var }
+    } else {
+      ::set d $var
+    }
     ::foreach v $args {
       ::set path [::lassign $v variable name default]
-      ::if { $name eq {} } { ::set name $variable }
+      ::if { $name eq {} } {
+        ::set name $variable
+      }
       ::upvar 1 $name value
       ::if { [::dict exists $d {*}$path $variable] } {
         ::set value [::dict get $d {*}$path $variable]
-      } else { ::set value $default }
+      } else {
+        ::set value $default
+      }
       ::dict set rd $name $value
     }
     ::return $rd
   }
-  
+
   proc pullFrom {var args} {
     ::set mpath [::lassign $var var]
     ::upvar 1 $var check
-    ::if { [::info exists check] } { 
+    ::if { [::info exists check] } {
       ::set d $check
-    } else { ::set d $var }
+    } else {
+      ::set d $var
+    }
     ::foreach v $args {
       ::set path [::lassign $v variable name default]
       ::if { $name eq {} } { ::set name $variable }
       ::upvar 1 $name value
       ::if { [::dict exists $d {*}$mpath $variable {*}$path] } {
         ::set value [::dict get $d {*}$mpath $variable {*}$path]
-      } else { ::set value $default }
+      } else {
+        ::set value $default
+      }
       ::dict set rd $name $value
     }
     ::return $rd
   }
-  
+
   proc modify {var args} {
     ::upvar 1 $var d
-    ::if { ! [info exists d] } { ::set d {} }
-    ::if { [::llength $args] == 1 } { ::set args [::lindex $args 0] }
-    ::dict for { k v } $args { ::dict set d $k $v }
+    ::if { ! [::info exists d] } {
+      ::set d [::dict create]
+    }
+    ::if { [::llength $args] == 1 } {
+      ::set args [::lindex $args 0]
+    }
+    ::dict for {k v} $args {
+      ::dict set d $k $v
+    }
     ::return $d
   }
-  
+
   proc push {var args} {
-    ::if {$var ne "->"} { ::upvar 1 $var d }
-    ::if { ! [::info exists d] } { ::set d {} }
+    ::if {$var ne "->"} {
+      ::upvar 1 $var d
+    }
+    ::if { ! [::info exists d] } {
+      ::set d [::dict create]
+    }
     ::foreach arg $args {
       ::set default [::lassign $arg variable name]
       ::upvar 1 $variable value
@@ -65,20 +89,34 @@ extend ::dict {
         ::if { $name eq {} } { ::set name $variable }
         ::if { $value ne {} } {
           ::dict set d $name $value
-        } else { ::dict set d $name $default }
-      } else { ::throw error "$variable doesn't exist when trying to push $name into dict $var" }
+        } else {
+          ::dict set d $name $default
+        }
+      } else {
+        ::return \
+          -code error \
+          " (dict push) $variable doesn't exist when trying to push $name into dict $var"
+      }
     }
     ::return $d
   }
-  
+
   proc pushIf {var args} {
     ::if {$var ne "->"} { ::upvar 1 $var d }
-    ::if { ! [::info exists d] } { ::set d {} }
+    ::if { ! [::info exists d] } {
+      ::set d [::dict create]
+    }
     ::foreach arg $args {
       ::set default [::lassign $arg variable name]
       ::upvar 1 $variable value
-      ::if { ! [::info exists value] } { ::throw error "$variable doesn't exist when trying to pushIf $name into dict $var" }
-      ::if { $name eq {} } { ::set name $variable }
+      ::if { ! [::info exists value] } {
+        ::return \
+          -code error \
+          " (dict pushIf) $variable doesn't exist when trying to pushIf $name into dict $var"
+      }
+      ::if { $name eq {} } {
+        ::set name $variable
+      }
       ::if { $value ne {} } {
         ::dict set d $name $value
       } elseif { $default ne {} } {
@@ -87,16 +125,26 @@ extend ::dict {
     }
     ::return $d
   }
-  
+
   proc pushTo {var args} {
     ::set mpath [::lassign $var var]
-    ::if {$var ne "->"} { ::upvar 1 $var d }
-    ::if { ! [::info exists d] } { ::set d {} }
+    ::if {$var ne "->"} {
+      ::upvar 1 $var d
+    }
+    ::if { ! [::info exists d] } {
+      ::set d [::dict create]
+    }
     ::foreach arg $args {
       ::set path [::lassign $arg variable name]
       ::upvar 1 $variable value
-      ::if { ! [::info exists value] } { ::throw error "$variable doesn't exist when trying to pushTo $name into dict $var at path $path" }
-      ::if { $name eq {} } { ::set name $variable }
+      ::if { ! [::info exists value] } {
+        ::return \
+          -code error \
+          " (dict pushTo) $variable doesn't exist when trying to pushTo $name into dict $var at path $path"
+      }
+      ::if { $name eq {} } {
+        ::set name $variable
+      }
       ::dict set d {*}$mpath {*}$path $name $value
     }
     ::return $d
@@ -107,72 +155,93 @@ extend ::dict {
     ::set dArgs [::lrange $var 1 end]
     ::upvar 1 $opVar theDict
     ::if { ! [::info exists theDict] } {
-      ::set theDict {}
+      ::set theDict [::dict create]
     }
-    ::set returnDict {}
+    ::set returnDict [::dict create]
     ::foreach val $args {
       ::lassign $val val nVar def
-      ::if {$nVar eq ""} {::set nVar $val}
+      ::if {$nVar eq {}} {
+        ::set nVar $val
+      }
       ::upvar 1 $nVar $nVar
-      ::if {$def ne ""} {
-        ::set $nVar [::if? [::dict get? $theDict {*}$dArgs $val] $def]
+      ::if {$def ne {}} {
+        ::if {![::dict exists $theDict {*}$dArgs $val]} {
+          ::set $nVar $def
+        } else {
+          ::set $nVar [::dict get $theDict {*}$dArgs $val]
+        }
       } else {
         ::set $nVar [::dict get? $theDict {*}$dArgs $val]
       }
-      ::dict set returnDict $nVar [set $nVar]
-      ::catch {::dict unset theDict {*}$dArgs $val}
+      ::dict set returnDict $nVar [::set $nVar]
+      ::dict unset theDict {*}$dArgs $val
     }
     ::return $returnDict
   }
-  
-  proc pickIf {var args} { ::return [::dict pick $var {*}$args] }
-  
+
+  proc pickIf {var args} {
+    return [::dict pick $var {*}$args]
+  }
+
   proc pick {var args} {
-    ::set tempDict {}
+    ::set tempDict [::dict create]
     ::foreach arg $args {
       ::lassign $arg key as
       ::if { [::dict exists $var $key] } {
-        ::if { $as eq {} } { ::set as $key }
+        ::if { $as eq {} } {
+          ::set as $key
+        }
         ::set v [::dict get $var $key]
-        ::if { $v ne {} } { ::dict set tempDict $as $v }
+        ::if { $v ne {} } {
+          ::dict set tempDict $as $v
+        }
       }
     }
     ::return $tempDict
   }
-  
+
   proc withKey {var key args} {
-    ::set tempDict {}
+    ::set tempDict [::dict create]
     ::dict for {k v} $var {
       ::if { [::dict exists $v $key {*}$args] } {
-        ::dict set tempDict $k [::dict get $v $key {*}$args]	
+        ::dict set tempDict $k [::dict get $v $key {*}$args]
       }
     }
     ::return $tempDict
   }
-  
+
+  # shimmer shimmer
   ::proc fromlist { lst {values {}} } {
-    ::set tempDict {}
-    ::append tempDict [::join $lst " [list $values] "] " [list $values]"
+    ::append tempDict [::join $lst " [::list $values] "] " [::list $values]"
+    ::return [::dict create {*}$tempDict]
   }
-  
+
   ::proc zip { dict args } {
     ::set zip      [::lindex $args end]
     ::set args     [::lrange $args 0 end-1]
     ::set response [::dict create]
     ::dict for { k v } $dict {
       ::foreach z $zip {
-        ::if { ! [::dict exists $v $z] } { ::set fail 1 ; ::break }
+        ::if { ! [::dict exists $v $z] } {
+          ::set fail 1
+          ::break
+        }
       }
-      ::if { [::info exists fail] } { ::unset fail ; ::continue }
-      ::foreach z $zip { ::dict lappend response $z [::dict get $v $z] }
+      ::if { [::info exists fail] } {
+        ::unset fail
+        ::continue
+      }
+      ::foreach z $zip {
+        ::dict lappend response $z [::dict get $v $z]
+      }
     }
     ::return $response
   }
-  
-  # dict sort values $my_dict -path [list timestamp] -first 10
+
+# dict sort values $my_dict -path [list timestamp] -first 10
   proc sort {what dict args} {
     ::if { [::dict exists $args -first] } {
-      ::set range [list 0 [expr { [dict get $args -first] - 1 }]] 
+      ::set range [list 0 [expr { [dict get $args -first] - 1 }]]
     }
     ::if { [::dict exists $args -last] } {
       ::set range [list end-[dict get $args -left] end]
@@ -181,9 +250,9 @@ extend ::dict {
       ::set max [dict get $args -max]
     }
     ::if { [::dict exists $args -expr] } {
-      ::set expr [::dict get $args -expr] 
+      ::set expr [::dict get $args -expr]
       ::if { [::dict exists $args -expect] } {
-        ::set expect [::dict get $args -expect] 
+        ::set expect [::dict get $args -expect]
       } else { ::set expect 1 }
     }
     ::set rdict [::dict create]
@@ -193,9 +262,9 @@ extend ::dict {
           ::set path [dict get $args -path]
           ::set sort_dict [::dict withKey $dict {*}$path]
           ::dict unset args -path
-        } else { 
+        } else {
           ::set path {}
-          ::set sort_dict $dict 
+          ::set sort_dict $dict
         }
         ::set keys      [::dict keys $sort_dict]
         ::set positions [::dict values $sort_dict]
@@ -205,7 +274,7 @@ extend ::dict {
           ::set values [::lsort $positions]
         }
         ::if { [::info exists range] } {
-          ::set values [::lrange $values {*}$range] 
+          ::set values [::lrange $values {*}$range]
         }
         ::if { [::dict exists $args -reverse] && [::dict get $args -reverse] } {
           ::set keys      [::lreverse $keys]
@@ -234,10 +303,10 @@ extend ::dict {
       k* - default {
         ::set keys [::dict keys $dict]
         ::if { [::dict exists $args -sort] } {
-          ::set keys [::lsort {*}[::dict get $args -sort] $keys] 
+          ::set keys [::lsort {*}[::dict get $args -sort] $keys]
         }
         ::if { [::info exists range] } {
-          ::set keys [::lrange $keys {*}$range] 
+          ::set keys [::lrange $keys {*}$range]
         }
         ::if { [::dict exists $args -reverse] && [::dict get $args -reverse] } {
           ::set keys [::lreverse $keys]
@@ -245,7 +314,7 @@ extend ::dict {
         ::foreach key $keys {
           ::if { [::info exists max]  && [::dict size $rdict] >= $max } { ::break }
           ::if { [::info exists expr] && $expr ne {} && [::string is false [try $expr]] } { ::continue }
-          ::dict set rdict $key [::dict get $dict $key] 
+          ::dict set rdict $key [::dict get $dict $key]
         }
       }
     }
@@ -270,15 +339,15 @@ extend ::dict {
   #     "k*" -
     #   default {
     #     ::foreach key [::lsort {*}$args $dictKeys] {
-    #       ::dict set res $key [::dict get $dict $key] 
+    #       ::dict set res $key [::dict get $dict $key]
     #     }
     #   }
     # }
   #   ::return $res
   # }
-  
+
   proc invert {var args} {
-    ::set d {}
+    ::set d [::dict create]
     ::dict for {k v} $var {
       ::if {"-overwrite" in $args} {
         ::dict set d $v $k
@@ -288,39 +357,43 @@ extend ::dict {
     }
     ::return $d
   }
-  
+
   proc json {json dict {key {}}} {
     ::upvar 1 $dict convertFrom
-    ::if {![info exists convertFrom] || $convertFrom eq {}} { ::return }
+    ::if {![info exists convertFrom] || $convertFrom eq {}} {
+      ::return
+    }
     ::set key [::if? $key $dict]
     $json map_key $key map_open
       ::dict for {k v} $convertFrom {
-        ::if {$v eq {} || $k eq {}} { ::continue }
+        ::if {$v eq {} || $k eq {}} {
+          ::continue
+        }
         ::if {[::string is entier -strict $v]} {   $json string $k number $v
         } elseif {[::string is bool -strict $v]} { $json string $k bool $v
-        } else {                                   $json string $k string $v  
+        } else {                                   $json string $k string $v
         }
       }
     $json map_close
     ::return
   }
-  
+
   proc serialize { json dict } {
     ::dict for {k v} $dict {
       ::if {$v eq {} || $k eq {}} { ::continue }
       ::if {[::string is entier -strict $v]} {   $json string $k number $v
       } elseif {[::string is bool -strict $v]} { $json string $k bool $v
-      } else {                                   $json string $k string $v  
+      } else {                                   $json string $k string $v
       }
     }
   }
-  
+
   proc types {tempDict} {
     ::set typeDict {}
     ::dict for {k v} $tempDict {
       ::if {[::string is entier -strict $v]} {     ::dict set typeDict $k number
         } elseif {[::string is bool -strict $v]} { ::dict set typeDict $k bool
-        } else {                                   ::dict set typeDict $k string 
+        } else {                                   ::dict set typeDict $k string
         }
     }
     ::return $typeDict

@@ -29,7 +29,6 @@
     dict unset SCHEMA default
   }
   my ApplyMiddlewares
-
 }
 
 ::oo::define ::state::Container destructor {

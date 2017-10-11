@@ -114,7 +114,6 @@ proc ::net::http {} {
 }
 
 proc ::net::init {} {
-  variable formMap
 
   if {![info exists ::net::config]} {
     # -charset: {iso8859-1} This can be changed, but iso8859-1 is the RFC standard.
@@ -128,7 +127,7 @@ proc ::net::init {} {
       -method      GET \
       -buffersize  65536 \
       -encoding    ascii \
-      -charset     iso8859-1 \
+      -charset     iso-8859-1 \
       -strict      true \
       -version     1.1 \
       -urlencoding utf-8 \
@@ -451,42 +450,42 @@ proc ::net::parse {response} {
   }
 
   if {[dict exists $headers content-type]} {
-    set content_type	[lindex [dict get $response headers content-type] end]
-			if {[regexp -nocase -- {^((?:text|application)/[^ ]+)(?:\scharset=\"?([^\"]+)\"?)?$} $content_type - mimetype charset]} {
-        if {$charset eq {}} {
-          switch -nocase -- $mimetype {
-            application/json - text/json {
-              set charset utf-8
-            }
-            application/xml - text/xml {
-              # According to the RFC, text/xml should default to
-							# US-ASCII, but this is widely regarded as stupid,
-							# and US-ASCII is a subset of UTF-8 anyway.  Any
-							# documents that fail because of an invalid UTF-8
-							# encoding were broken anyway (they contained bytes
-							# not legal for US-ASCII either)
-							set charset utf-8
-            }
-            default {
-              set charset identity
-            }
+    set content_type [dict get $headers content-type]
+		if {[regexp -nocase -- {^((?:text|application)/[^ ]+)(?:\scharset=\"?([^\"]+)\"?)?$} $content_type - mimetype charset]} {
+      if {$charset eq {}} {
+        switch -nocase -- $mimetype {
+          application/json - text/json {
+            set charset utf-8
+          }
+          application/xml - text/xml {
+            # According to the RFC, text/xml should default to
+						# US-ASCII, but this is widely regarded as stupid,
+						# and US-ASCII is a subset of UTF-8 anyway.  Any
+						# documents that fail because of an invalid UTF-8
+						# encoding were broken anyway (they contained bytes
+						# not legal for US-ASCII either)
+						set charset utf-8
+          }
+          default {
+            set charset identity
           }
         }
-        switch -nocase -- $charset {
-					utf-8        { set data [encoding convertfrom utf-8     $data] }
-					iso-8859-1   { set data [encoding convertfrom iso8859-1 $data] }
-					windows-1252 { set data [encoding convertfrom cp1252    $data] }
-					identity     { # Nothing To Do # }
-					default {
-						# Only broken servers will land here - we specified the set of encodings we support in the
-						# request Accept-Encoding header
-            tailcall return \
-              -code error \
-              -errorCode [list HTTP PARSE_REQUEST UNHANDLED_CHARSET $charset] \
-              " the server responded with a charset that is not accepted: $charset"
-					}
-				}
       }
+      switch -nocase -- $charset {
+				utf-8        { set data [encoding convertfrom utf-8     $data] }
+				iso-8859-1   { set data [encoding convertfrom iso8859-1 $data] }
+				windows-1252 { set data [encoding convertfrom cp1252    $data] }
+				identity     { # Nothing To Do # }
+				default {
+					# Only broken servers will land here - we specified the set of encodings we support in the
+					# request Accept-Encoding header
+          tailcall return \
+            -code error \
+            -errorCode [list HTTP PARSE_REQUEST UNHANDLED_CHARSET $charset] \
+            " the server responded with a charset that is not accepted: $charset"
+				}
+			}
+    }
   }
 
   # TODO: A Transform will be made available here to transform

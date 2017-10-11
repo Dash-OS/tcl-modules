@@ -222,8 +222,9 @@ if 0 {
     "[string toupper [dict get $CONFIG -method]] $PATH HTTP/[dict get $CONFIG -version]"
   # $headerKey: $headerValue \r\n
   foreach {hdr val} [dict get $CONFIG -headers] {
-    lappend REQUEST "${hdr}: $val"
+    lappend REQUEST "${hdr}: [string trim $val]"
   }
+  #$PATH
   # \r\n
   lappend REQUEST {}
 }
@@ -239,9 +240,16 @@ if 0 {
       }
     }
 
-    chan configure $SOCK -translation binary
+    # puts [join $REQUEST \n]
 
-    puts $SOCK [join $REQUEST \r\n]
+    chan configure $SOCK -translation crlf
+
+    foreach line $REQUEST {
+      puts $SOCK $line
+    }
+    # puts  $SOCK [join $REQUEST \r\n]
+
+    # puts $SOCK \r\n
 
     if {[dict exists $CONFIG -body]} {
       chan configure  $SOCK -translation {auto binary}
@@ -262,9 +270,10 @@ if 0 {
   }
 }
 
+# set session [net call http://csiro.au]
+
 ::oo::define ::net::class::Session method Runner args {
   lassign $args cmd
-  set waiters [list]
 
   # At this point the user will receive the session and
   # our login will move into the asynchronous world.
@@ -308,7 +317,7 @@ if 0 {
       switch -- [lindex $args 0] {
         WAIT {
           if {$STATUS eq "COMPLETE"} {
-            [lindex $args 1] $RESPONSE
+            catch { {*}[lindex $args 1] $RESPONSE }
           } else {
             lappend waiters [lindex $args 1]
           }
@@ -343,7 +352,7 @@ if 0 {
               dict set RESPONSE state [dict create \
                 version  [lindex $header 0] \
                 code     [lindex $header 1] \
-                status   [lindex $header 2]
+                status   [lrange $header 2 end]
               ]
             } else {
               set colonIdx [string first : $header]
@@ -394,9 +403,11 @@ if 0 {
     my Status COMPLETE
   }
 
-  foreach waiter $waiters {
-    puts "Waking up Waiter! $waiter"
-    {*}$waiter $RESPONSE
+  if {[info exists waiters]} {
+    foreach waiter $waiters {
+      puts "Waking up Waiter! $waiter"
+      {*}$waiter $RESPONSE
+    }
   }
 
   foreach waitvar [info vars [namespace current]::waiters::*] {
@@ -439,31 +450,41 @@ if 0 {
 #
 # proc spawncoros
 
-proc httpcb {token args} {
-  set data [::http::data $token]
-  set ::STOP [clock microseconds]
-  puts "$data | [expr {$::STOP - $::START}] microseconds"
-}
 
-proc netcb {session args} {
-  set data [$session response data]
-  set ::STOP [clock microseconds]
-  puts "$data | [expr {$::STOP - $::START}] microseconds"
-}
-
-proc testnet {} {
-  set ::START [clock microseconds]
-  net call http://my.dashos.net/v1/myip.json -command ::netcb
-}
-
-proc testhttp {} {
-  set ::START [clock microseconds]
-  http::geturl http://my.dashos.net/v1/myip.json -command ::httpcb
-}
-
-
-proc startnet {} {
-  testnet
-  after 5000 { set ::i 0 }
-  vwait ::i
-}
+# proc netcb {session args} {
+#   set data [$session response data]
+#   set ::STOP [clock microseconds]
+#   puts "$data | [expr {$::STOP - $::START}] microseconds"
+# }
+#
+# proc testnet {} {
+#   set ::START [clock microseconds]
+#   net call http://my.dashos.net/v1/myip.json -command ::netcb
+# }
+#
+# proc testhttp {} {
+#   set ::START [clock microseconds]
+#   http::geturl http://my.dashos.net/v1/myip.json -command ::httpcb
+# }
+#
+# proc httpcb {token args} {
+#   set data [::http::data $token]
+#   set ::STOP [clock microseconds]
+#   puts "$data | [expr {$::STOP - $::START}] microseconds"
+# }
+#
+# proc startnet {} {
+#   testnet
+#   testnet
+#   testnet
+#   after 5000 { set ::i 0 }
+#   vwait ::i
+# }
+#
+# proc starthttp {} {
+#   testhttp
+#   testhttp
+#   testhttp
+#   after 5000 { set ::i 0 }
+#   vwait ::i
+# }

@@ -22,7 +22,7 @@ extend ::string {
     ::return
   }
 
-  if { [::catch {::string cat}] } {
+  if { [::info command ::tcl::string::cat] eq {} } {
     proc cat args {
       ::return [::join $args {}]
     }

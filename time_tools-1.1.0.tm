@@ -1,3 +1,6 @@
+package require task
+package require tasks::every
+
 namespace eval ::Time {
   variable ClockID         {}
   variable GetTimezoneURL  http://ip-api.com/json
@@ -5,7 +8,7 @@ namespace eval ::Time {
   namespace export *
 }
 
-# This is an old package - lots of cleanup required!
+# This is an old package - lots of cleanup required and not meant for public use
 
 proc ::Time::Timezone {} {
   if {[state exists GlobalData]} {
@@ -14,8 +17,12 @@ proc ::Time::Timezone {} {
       set data [::Time::GetTimezone]
       if { [dict exists $data timezone] } {
         return [dict get $data timezone]
-      } else { return }
-    } else { return $timezone }
+      } else {
+        return
+      }
+    } else {
+      return $timezone
+    }
   } else {
     set data [::Time::GetTimezone]
     if { [dict exists $data timezone] } {
@@ -27,8 +34,8 @@ proc ::Time::Timezone {} {
 
 proc ::Time::GetTimezone {} {
   try {
-    set token [ ::http::geturl $::Time::GetTimezoneURL -timeout 10000 ]
-    set data  [ ::http::data $token ]
+    set token [::http::geturl $::Time::GetTimezoneURL -timeout 10000]
+    set data  [::http::data $token]
     ::http::cleanup $token
     if { $data ne {} } {
       set data     [json get $data]
@@ -39,22 +46,22 @@ proc ::Time::GetTimezone {} {
         dict set response timezone $timezone
       }
       if { [dict exists $data isp] } {
-        dict set response isp [dict get $data isp] 
+        dict set response isp [dict get $data isp]
       }
       if { [dict exists $data query] } {
-        dict set response query [dict get $data query] 
+        dict set response query [dict get $data query]
       }
       if { [dict exists $data zip] } {
-        dict set response zip [dict get $data zip] 
+        dict set response zip [dict get $data zip]
       }
       if { [dict exists $data regionName] } {
-        dict set response regionName [dict get $data regionName] 
+        dict set response regionName [dict get $data regionName]
       }
       if { [dict exists $data city] } {
-        dict set response city [dict get $data city] 
+        dict set response city [dict get $data city]
       }
       if { [dict exists $data countryCode] } {
-        dict set response country [dict get $data countryCode] 
+        dict set response country [dict get $data countryCode]
       }
       if { [info commands ::state] ne {} && [state exists GlobalData] } {
         state set GlobalData [dict pickIf $response isp timezone zip city country]
@@ -117,6 +124,11 @@ proc ::Time::ParseRange args {
 
 proc ::Time::Scan {t {opts ""} } {
   set timezone [::Time::Timezone]
+  if {$timezone eq {}} {
+    return \
+      -code error \
+      " ::Time::Scan failed to discover timezone"
+  }
   set response {}
   set cmd [list clock scan $t -timezone $timezone]
   set next 0
@@ -193,7 +205,7 @@ proc ::Time::Until {timeQueried { as "ms" } } {
 
   set fNow     [scan [string map {":" ""} $timeNow] %d]
   set fQueried [scan [string map {":" ""} $timeQueried] %d]
-  
+
   if { $fNow > $fQueried } {
     set baseTime [clock add $secondsNow 1 day -timezone $timezone]
   } else {
@@ -205,7 +217,7 @@ proc ::Time::Until {timeQueried { as "ms" } } {
     -timezone $timezone \
     -format   "%R"
   ]
-  
+
   set durationSeconds [ expr { $timeThen - $secondsNow } ]
   return [::Time::Duration $durationSeconds $as]
 }
@@ -214,13 +226,13 @@ proc ::Time::Since {timeQueried { as "ms" } } {
   set now      [::Time::Now]
   set timezone [dict get $now timezone]
   set timeNow  [dict get $now R]
-  
+
   set timeQueried [::Time::FormatQuery $timeQueried $timezone]
   set secondsNow  [clock seconds]
-  
+
   set fNow     [scan [string map {":" ""} $timeNow] %d]
   set fQueried [scan [string map {":" ""} $timeQueried] %d]
-  
+
   if { $fNow < $fQueried } {
     set baseTime [clock add $secondsNow -1 day -timezone $timezone]
   } else {
@@ -232,7 +244,7 @@ proc ::Time::Since {timeQueried { as "ms" } } {
     -timezone $timezone \
     -format   "%R"
   ]
-  
+
   set durationSeconds [ expr {$secondsNow - $timeThen} ]
   return [Duration $durationSeconds $as]
 }
@@ -258,10 +270,12 @@ proc ::Time::Duration {durationSeconds as} {
     h*        { set duration [format "%.2f" [expr { double($durationSeconds) / 60 / 60 }]] }
   }
 }
-  
-proc ::Time::Now {{ timezone {} } { i {} } } {
+
+proc ::Time::Now {{ timezone {} } { i {} }} {
   set tempDict [dict create]
-  if { $timezone eq {} } { set timezone [::Time::Timezone] }
+  if { $timezone eq {} } {
+    set timezone [::Time::Timezone]
+  }
   try {
     # 18 arguments
     set milliseconds [clock milliseconds]
@@ -297,18 +311,18 @@ proc ::Time::Now {{ timezone {} } { i {} } } {
 
 proc timestamp { {timestamp {}} } {
 
-  if { $timestamp eq {} } { 
-    set timestamp [clock seconds] 
+  if { $timestamp eq {} } {
+    set timestamp [clock seconds]
   } elseif { [string length $timestamp] >= [clock milliseconds] } {
     # If we receive milliseconds, we want to change it to seconds
-    set timestamp [expr { round( $timestamp / 1000 ) }] 
+    set timestamp [expr { round( $timestamp / 1000 ) }]
   }
 
   return [clock format $timestamp \
     -format   "%m/%d/%y at %I:%M %p" \
     -timezone [::Time::Timezone]
   ]
-  
+
 }
 
 proc ZipCode { {retry 0} } {
@@ -372,7 +386,9 @@ proc ::Time::StartClock {} {
   if { [info commands ::Time::RegisterState] ne {} } {
     ::Time::RegisterState
   }
-  if { $ClockID ne {} } { ::every cancel $ClockID }
+  if { $ClockID ne {} } {
+    ::every cancel $ClockID
+  }
   set ClockID [::every 60000 ::Time::Tick]
   ::Time::Tick
 }
@@ -386,5 +402,6 @@ proc ::Time::StopClock {} {
   } else { return 0 }
 }
 
-proc ::Time::Tick {} { state set CurrentTime [::Time::Now] }
-
+proc ::Time::Tick {} {
+  state set CurrentTime [::Time::Now]
+}

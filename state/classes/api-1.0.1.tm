@@ -2,9 +2,9 @@
 	try {
 		if {[my exists $localID]} {
 			::onError "State $localID Already Exists" {} "
-				You can not create a State Container which has already been 
+				You can not create a State Container which has already been
 				registered (${localID})
-			"	
+			"
 			return
 		}
 		set schema [::state::parse::state $localID {*}$args]
@@ -17,13 +17,16 @@
 }
 
 ::oo::define ::state::API method exists { ref {strict 0} } {
-	return [ expr { [info commands $ref] ne {} } ]
+  if {![string match ::* $ref]} {
+    set ref ::state::containers::$ref
+  }
+	return [expr {[info commands $ref] ne {}}]
 }
 
 ::oo::define ::state::API method ref {localID} {
 	set ref ::state::containers::$localID
 	if { ! [my exists $ref] } {
-		throw error "State $localID has not yet been registered"	
+		throw error "State $localID has not yet been registered"
 	}
 	return $ref
 }
@@ -56,7 +59,6 @@
 	set ref [my ref $localID]
 	$ref apply_middleware $middlewareID
 }
-
 
 ::oo::define ::state::API method push {localID entryID args} {
 	set updateDict {}
@@ -97,9 +99,9 @@
 	if { ! $singleton } {
 		set response [$ref get VALUES $entryID]
 		dict pull response [list $entryID tempDict]
-	} else { 
+	} else {
 		set response [$ref get VALUES $args]
-		set tempDict $response 
+		set tempDict $response
 	}
 	if {$args eq {}} { set updateDict $tempDict } else {
 		foreach arg $args {
@@ -117,11 +119,9 @@
 	tailcall ::state::configure::$what {*}$args
 }
 
-
 ::oo::define ::state::API method values {localID args} {
 	return [dict values [my get $localID {*}$args]]
 }
-
 
 ::oo::define ::state::API method delete {localID} {
 	tailcall [my ref $localID] destroy
@@ -157,7 +157,6 @@
 	tailcall [my ref $localID] json VALUES {*}$args
 }
 
-
 ::oo::define ::state::API method serialize {localID args} {
 	tailcall [my ref $localID] serialize {*}$args
 }
@@ -173,7 +172,6 @@
 	state remove $localID
 	state set $localID {*}[dict values $new_state]
 }
-
 
 ::oo::define ::state::API method key {localID} {
 	tailcall ::state prop $localID KEY
