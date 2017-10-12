@@ -47,10 +47,25 @@ set ::bpacket::value_ids [dict create \
   set PACKET {}
   set FIELDS {}
 }
-# retrieve the current packet
-::oo::define ::bpacket::writer method get {} { return [format {%s%s} $PACKET \x00\x00] }
+
+# retrieve the current packet, providing the overall
+# encapsulation for the packet.
+#
+# \xC0\x8D$length$PACKET\x00
+::oo::define ::bpacket::writer method get {} {
+  # puts "Length  [my length]"
+  # puts "\n\n\n"
+  return [format \
+    {%s%s%s%s} \
+    \xC0\x8D \
+    [my uint64 [my length]] \
+    $PACKET \
+    \x00
+  ]
+}
 
 ::oo::define ::bpacket::writer method fields {} { return $FIELDS }
+
 # get the length of the packet currently
 ::oo::define ::bpacket::writer method length {} { string length $PACKET }
 
@@ -63,9 +78,9 @@ set ::bpacket::value_ids [dict create \
 # append a binary encoded bool \x00 \x01 to our packet
 ::oo::define ::bpacket::writer method bool { bool } {
   if { [string is true -strict $bool] } {
-    return [ binary format c 1 ]
+    return [binary format c 1]
   } else {
-    return [ binary format c 0 ]
+    return [binary format c 0]
   }
 }
 

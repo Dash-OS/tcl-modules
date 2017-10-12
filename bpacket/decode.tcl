@@ -2,7 +2,7 @@
 ::oo::class create ::bpacket::reader {}
 
 ::oo::define ::bpacket::reader {
-  variable PACKET BUFFER
+  variable PACKET BUFFER EXPECTED_LENGTH
 }
 
 ::oo::define ::bpacket::reader constructor packet {
@@ -16,11 +16,62 @@
 ::oo::define ::bpacket::reader method set { packet } {
   set PACKET $packet
   set BUFFER $packet
+  if {![string match "${::bpacket::WRAPPER}*" $packet]} {
+    puts "FAIL!"
+    [self] destroy
+  }
+  set BUFFER [string trimleft $BUFFER $::bpacket::WRAPPER]
+  set EXPECTED_LENGTH [my varint]
+  puts "Expecting Length: $EXPECTED_LENGTH"
+}
+
+# Validate that we have received a complete packet before parsing.
+if 0 {
+  @ validate @
+    validates our packet when first created.  it will first check
+    that this appears to be the start of a packet, then it will
+    figure out if more data is expected before we can process
+
+  @note Multiple Packets
+    It is possible that we receive multiple packets bundled in a
+    single request.  This is allowed and will be handled as-needed.
+
+  packet encapsulation: \x00$packet\xC0\x8D
+}
+::oo::define ::bpacket::reader method validate {} {
+  if {![info exists EXPECTED_LENGTH]} {
+    if {[string index $PACKET 0] eq "\x00"} {
+      # We can continue
+      set BUFFER [string range $BUFFER 1 end]
+      # Now we are expecting the encoded length of the
+      # entire packet.
+      set EXPECTED_LENGTH [my varint]
+      # Now that we know the expected length of the packet,
+      # we can check to see if we are likely to currently have
+      # the given packet.
+    } else {
+      # if we do not start with a NULL then this is not the start of a
+      # packet.
+      [self destroy]
+      return \
+        -code error \
+        -errorCode [list BINARY_PACKET READ VALIDATE INVALID_HEADER NO_NULL_BYTE]
+    }
+  }
+
+  # If we get here then the packet is invalid
+  [self] destroy
+  return \
+    -code error \
+    -errorCode [list BINARY_PACKET READ VALIDATE INVALID_HEADER]
 }
 
 ::oo::define ::bpacket::reader method field {} {
   binary scan $BUFFER ca* i BUFFER
-  set field [expr {($i & 120) >> 3}] ; set wire [expr {$i & 7}]
+
+  set field [expr {($i & 120) >> 3}]
+  set wire [expr {$i & 7}]
+
   #puts "Field: $field Wire $wire"
   if {!($i & 128)} { return [list $field $wire] }
 
@@ -41,6 +92,7 @@
     set x [expr {((127 & $i) << 25) | $field}]
     return [list $field $wire]
   }
+
   throw SPEC_ERROR "*** Spec says we never should reach here!"
 }
 
@@ -71,7 +123,10 @@
     incr times
   }
   if {$times >= 1200} {
-    throw error "Malformed Packet"
+    tailcall return \
+      -code error \
+      -errorCode [list BINARY_PACKET READ MALFORMED_PACKET STACK_OVERFLOW] \
+      " bpacket encountered a malformed packet while reading a uint64 value"
   }
   return $x
 }
@@ -85,14 +140,17 @@
   set shift -7
   set n 0 ; set x 0 ; set i 128
   set times 0
-  while { $i & 128 && $times < 120 } {
+  while { $i & 128 && $times < 1000 } {
     incr n
     binary scan $BUFFER ca* i BUFFER
     set x [expr { ( (127 & $i ) << [incr shift 7] ) | $x }]
     incr times
   }
   if {$times >= 1200} {
-    throw error "Malformed Packet"
+    tailcall return \
+      -code error \
+      -errorCode [list BINARY_PACKET READ MALFORMED_PACKET STACK_OVERFLOW] \
+      " bpacket encountered a malformed packet while reading a varint value"
   }
   return $x
 }
@@ -102,6 +160,7 @@
   binary scan $BUFFER a${int}a* data BUFFER
   return $data
 }
+
 ::oo::define ::bpacket::reader method hex {} {
   binary scan $BUFFER H* hex
   return $hex
@@ -109,10 +168,10 @@
 
 # get each data piece
 ::oo::define ::bpacket::reader method next {} {
-  if { [string equal [string range $BUFFER 0 1] \x00\x00] } {
+  if { [string equal [string range $BUFFER 0 1] \xC0\x8D] } {
     # Is another packet possibly available?
     #puts [string bytelength $BUFFER]
-    if { [string bytelength $BUFFER] > 4 } {
+    if { [string length $BUFFER] > 4 } {
       # If we have more data, we move to the next packet
       set BUFFER [string range $BUFFER 2 end]
       return [list 2]

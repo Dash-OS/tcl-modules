@@ -80,4 +80,19 @@ extend ::string {
       [::string vars $str]
     ]
   }
+
+  # string startswith hello "hello, world"
+  proc startswith {chars str args} {
+    ::tailcall string match {*}$args ${chars}* $str
+  }
+
+  # string endswith world "hello, world"
+  proc endswith {chars str args} {
+    ::tailcall string match {*}$args *${chars} $str
+  }
+
+  # string includes "ello," "hello, world"
+  proc includes {chars str} {
+    ::tailcall string match *${chars}* $str
+  }
 }
