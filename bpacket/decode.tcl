@@ -1,5 +1,36 @@
-
-::oo::class create ::bpacket::reader {}
+# provides a utility to read varint values outside of the
+# reader context - returning a list of elements
+# $varint $cursor $remaining
+proc ::bpacket::decode::varint data {
+  # remove our wrapper value before parsing any varint
+  # our cursor indicates the location where the data
+  # begins and the varint completes, including the removal
+  # of any WRAPPER values.
+  set cursor 0
+  set wrapper_length [string length $::bpacket::HEADER]
+  while {[string match ${::bpacket::HEADER}* $data]} {
+    # we need to count how many times we shift so we can
+    # return the index for the start of the data from our
+    # current position
+    incr cursor $wrapper_length
+    set data [string range $data ${wrapper_length} end]
+  }
+  set shift -7
+  set x 0 ; set i 128
+  set times 0
+  while { $i & 128 && $times < 1000 } {
+    binary scan $data ca* i data
+    set x [expr { ( (127 & $i ) << [incr shift 7] ) | $x }]
+    incr times
+  }
+  if {$times >= 1200} {
+    tailcall return \
+      -code error \
+      -errorCode [list BINARY_PACKET READ MALFORMED_PACKET STACK_OVERFLOW] \
+      " bpacket encountered a malformed packet while reading a varint value"
+  }
+  return [list $x [expr {$cursor + $times}] $data]
+}
 
 ::oo::define ::bpacket::reader {
   variable PACKET BUFFER EXPECTED_LENGTH
@@ -16,54 +47,15 @@
 ::oo::define ::bpacket::reader method set { packet } {
   set PACKET $packet
   set BUFFER $packet
-  if {![string match "${::bpacket::WRAPPER}*" $packet]} {
-    puts "FAIL!"
+  if {![string match "${::bpacket::HEADER}*" $packet]} {
     [self] destroy
+    tailcall return \
+      -code error \
+      -errorCode [list BINARY_PACKET READ VALIDATE INVALID_HEADER] \
+      " the received packet does not appears to start with the expected header value"
   }
-  set BUFFER [string trimleft $BUFFER $::bpacket::WRAPPER]
+  set BUFFER [string trimleft $BUFFER $::bpacket::HEADER]
   set EXPECTED_LENGTH [my varint]
-  puts "Expecting Length: $EXPECTED_LENGTH"
-}
-
-# Validate that we have received a complete packet before parsing.
-if 0 {
-  @ validate @
-    validates our packet when first created.  it will first check
-    that this appears to be the start of a packet, then it will
-    figure out if more data is expected before we can process
-
-  @note Multiple Packets
-    It is possible that we receive multiple packets bundled in a
-    single request.  This is allowed and will be handled as-needed.
-
-  packet encapsulation: \x00$packet\xC0\x8D
-}
-::oo::define ::bpacket::reader method validate {} {
-  if {![info exists EXPECTED_LENGTH]} {
-    if {[string index $PACKET 0] eq "\x00"} {
-      # We can continue
-      set BUFFER [string range $BUFFER 1 end]
-      # Now we are expecting the encoded length of the
-      # entire packet.
-      set EXPECTED_LENGTH [my varint]
-      # Now that we know the expected length of the packet,
-      # we can check to see if we are likely to currently have
-      # the given packet.
-    } else {
-      # if we do not start with a NULL then this is not the start of a
-      # packet.
-      [self destroy]
-      return \
-        -code error \
-        -errorCode [list BINARY_PACKET READ VALIDATE INVALID_HEADER NO_NULL_BYTE]
-    }
-  }
-
-  # If we get here then the packet is invalid
-  [self] destroy
-  return \
-    -code error \
-    -errorCode [list BINARY_PACKET READ VALIDATE INVALID_HEADER]
 }
 
 ::oo::define ::bpacket::reader method field {} {
@@ -168,21 +160,32 @@ if 0 {
 
 # get each data piece
 ::oo::define ::bpacket::reader method next {} {
-  if { [string equal [string range $BUFFER 0 1] \xC0\x8D] } {
-    # Is another packet possibly available?
-    #puts [string bytelength $BUFFER]
-    if { [string length $BUFFER] > 4 } {
-      # If we have more data, we move to the next packet
-      set BUFFER [string range $BUFFER 2 end]
-      return [list 2]
+  if { [string match "${::bpacket::EOF}*" $BUFFER] } {
+    # Is another packet possibly available? Remove a single
+    # EOF - EOF should never match HEADER.
+    set BUFFER [string trimleft $::bpacket::EOF]
+    if {$BUFFER ne {}} {
+      # Now we will know if we have another packet to parse
+      # if we have another HEADER at idx 0
+      # If we don't then we unfortunately have no way of
+      # parsing the remaining buffer
+      if {[string match "${::bpacket::HEADER}*" $BUFFER]} {
+        # yep - next packet is queued up and ready to go!
+        return [list 2]
+      } else {
+        return [list 0 WARN TRAILING_TRASH [string length $BUFFER]]
+      }
     }
     return [list 0]
   }
-  if { [string bytelength $BUFFER] <= 3 } {
-    return 0
+
+  if {[string trim $BUFFER] eq {}} {
+    return [list 0]
   }
+
   set id   [my varint]
   set type [my varint]
+
   #puts "ID: $id - Wire Type: $type"
   switch -- $type {
     0 { # varint | int32, int64, uint32, uint64, sint32, sint64, bool, enum
@@ -203,10 +206,10 @@ if 0 {
       }
     }
     17 - 18 {
-            # 17 - List - A field of length delimited values prefixed by list length.
-            # 18 - Keyed Dictionary - $varint $value - where $varint is key
-            #      This works similar to list except it is converted to a
-            #      dictionary on the other end based on the given keys.
+      # 17 - List - A field of length delimited values prefixed by list length.
+      # 18 - Keyed Dictionary - $varint $value - where $varint is key
+      #      This works similar to list except it is converted to a
+      #      dictionary on the other end based on the given keys.
       set length [my varint]
       set data   [list]
       while {$length > 0} {

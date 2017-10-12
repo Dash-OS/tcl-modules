@@ -1,8 +1,8 @@
 namespace eval ::bpacket {}
 
 set ::bpacket::value_types [dict create \
-  vint      0 \
-  string    2 \
+  vint       0 \
+  string     2 \
   bool      15 \
   flags     16 \
   list      17 \
@@ -23,8 +23,6 @@ set ::bpacket::value_ids [dict create \
   20 raw \
   21 aes
 ]
-
-::oo::class create ::bpacket::writer {}
 
 ::oo::define ::bpacket::writer {
   variable PACKET FIELDS TEMPLATE
@@ -53,14 +51,12 @@ set ::bpacket::value_ids [dict create \
 #
 # \xC0\x8D$length$PACKET\x00
 ::oo::define ::bpacket::writer method get {} {
-  # puts "Length  [my length]"
-  # puts "\n\n\n"
   return [format \
     {%s%s%s%s} \
-    \xC0\x8D \
+    $::bpacket::HEADER \
     [my uint64 [my length]] \
     $PACKET \
-    \x00
+    $::bpacket::EOF
   ]
 }
 

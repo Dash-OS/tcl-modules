@@ -1,50 +1,11 @@
-package require tcl::chan::events
-package require ensembled
-
-namespace eval ::bpacket {ensembled}
-namespace eval ::bpacket::decode {ensembled}
-
-variable ::bpacket::WRAPPER "\xC0\x8D"
-
-proc ::bpacket::decode::varint data {
-  # remove our wrapper value before parsing any varint
-  # our cursor indicates the location where the data
-  # begins and the varint completes, including the removal
-  # of any WRAPPER values.
-  set cursor 0
-  set wrapper_length [string length $::bpacket::WRAPPER]
-  while {[string match ${::bpacket::WRAPPER}* $data]} {
-    # we need to count how many times we shift so we can
-    # return the index for the start of the data from our
-    # current position
-    incr cursor $wrapper_length
-    set data [string range $data ${wrapper_length} end]
-  }
-  set shift -7
-  set x 0 ; set i 128
-  set times 0
-  while { $i & 128 && $times < 1000 } {
-    binary scan $data ca* i data
-    set x [expr { ( (127 & $i ) << [incr shift 7] ) | $x }]
-    incr times
-  }
-  if {$times >= 1200} {
-    tailcall return \
-      -code error \
-      -errorCode [list BINARY_PACKET READ MALFORMED_PACKET STACK_OVERFLOW] \
-      " bpacket encountered a malformed packet while reading a varint value"
-  }
-  return [list $x [expr {$cursor + $times}] $data]
-}
-
-# checks if the data is wrapped in the $::bpacket::WRAPPER
+# checks if the data is wrapped in the $::bpacket::HEADER
 proc ::bpacket::wrapstart data {
-  set length [string length $::bpacket::WRAPPER]
+  set length [string length $::bpacket::HEADER]
   # if the string is wrapped, checked if the value right after it is
   # also a wrapper
   binary scan $data a${length} wrapper
   # puts $a
-  if {[info exists wrapper] && [string equal $wrapper $::bpacket::WRAPPER]} {
+  if {[info exists wrapper] && [string equal $wrapper $::bpacket::HEADER]} {
     # the first character is the wrapper, however this may be
     # the end of one and the start of another
     return true
@@ -52,7 +13,7 @@ proc ::bpacket::wrapstart data {
   return false
 }
 
-# searches the value for $::bpacket::WRAPPER and returns the index
+# searches the value for $::bpacket::HEADER and returns the index
 # when this is called we are looking for the "start" wrapper and
 # are trashing everything else that may precede it since we don't
 # have the bytes required to complete the previous packet.
@@ -60,8 +21,8 @@ proc ::bpacket::wrapstart data {
 # returns either an empty string or the packet with preceeding junk
 # removed, signaling the start of a bpacket.
 proc ::bpacket::headerstart data {
-  set length [string length $::bpacket::WRAPPER]
-  set idx    [string first $::bpacket::WRAPPER $data]
+  set length [string length $::bpacket::HEADER]
+  set idx    [string first $::bpacket::HEADER $data]
   if {$idx == -1} {
     # we could not find the wrapper in the given string
     return
@@ -74,8 +35,6 @@ proc ::bpacket::headerstart data {
   return $buf
 }
 
-::oo::class create ::bpacket::stream {}
-
 ::oo::define ::bpacket::stream {
   variable STATUS BUFFER PACKETS CHAN CALLBACK
   # when building a chunked packet we will populate these values indicating
@@ -84,20 +43,43 @@ proc ::bpacket::headerstart data {
   # NEXT_SIZE  = expected [string length] of packet (not including wrapper)
   # NEXT_START = index of where our packet starts relative to BUFFER index 0
   variable NEXT_SIZE NEXT_START
+  # store timeouts / afterids to cancel when needed
+  variable TIMEOUTS
 }
 
-::oo::define ::bpacket::stream constructor {} {
+::oo::define ::bpacket::stream constructor args {
+  set TIMEOUTS   [dict create]
+  set PACKETS    [list]
+  set STATUS     NEW
   set NEXT_SIZE  -1
   set NEXT_START -1
-  set CALLBACK   {}
-  set CHAN       {}
-  set BUFFER     {}
-  set STATUS     NEW
-  set PACKETS    [list]
+  if {[llength $args]} {
+    foreach {arg value} $args {
+      set [string toupper $arg] $value
+    }
+  }
+  if {![info exists BUFFER]} {
+    set BUFFER {}
+  }
+  if {![info exists CALLBACK]} {
+    set CALLBACK {}
+  }
+  if {![info exists CHAN]} {
+    set CHAN {}
+  }
 }
 
 ::oo::define ::bpacket::stream destructor {
-
+  dict for {name id} $TIMEOUTS {
+    after cancel $id
+  }
+  if {[info command [namespace current]::runner] ne {}} {
+    [namespace current]::runner CLOSING
+  }
+  # safety check
+  if {$CHAN in [chan names]} {
+    catch { chan close $CHAN }
+  }
 }
 
 ::oo::define ::bpacket::stream method use chan {
@@ -119,6 +101,7 @@ proc ::bpacket::headerstart data {
 
 ::oo::define ::bpacket::stream method event callback {
   set CALLBACK $callback
+  dict set TIMEOUTS dispatch [after 0 [namespace code [list my Dispatch]]]
 }
 
 ::oo::define ::bpacket::stream method prop prop {
@@ -127,13 +110,13 @@ proc ::bpacket::headerstart data {
 
 # When append is called, we will add more data to the buffer
 # and attempt to build a fully formed packet.
-::oo::define ::bpacket::stream method append data {
+::oo::define ::bpacket::stream method Append data {
   set initial [expr {[string length $BUFFER] == 0}]
   if {$initial} {
     # this is the initial data and we can begin parsing
     # for complete bpackets.
     if {![::bpacket::wrapstart $data]} {
-      # bpacket is wrapped with $::bpacket::WRAPPER, check for the
+      # bpacket is wrapped with $::bpacket::HEADER, check for the
       # value within the data and ignore anything else that may
       # precede it.  if a header can not be found then we will
       # end up appending nothing to the buffer value.
@@ -150,12 +133,12 @@ proc ::bpacket::headerstart data {
   }
   # at this point, if our buffer has any data in it, we will attempt
   # to parse the buffer into packets which can be dispatched
-  my flush
+  my Flush
 }
 
 # flush the buffer by attempting to read the current buffer and attempt
 # to capture a complete packet
-::oo::define ::bpacket::stream method flush {} {
+::oo::define ::bpacket::stream method Flush {} {
   if {$BUFFER ne {}} {
     # here we want to verify that our BUFFER starts with our
     # wrapper value.  if something gets messed up in some way
@@ -178,11 +161,13 @@ proc ::bpacket::headerstart data {
         lassign [bpacket decode varint $BUFFER] NEXT_SIZE NEXT_START
       }
 
-      set packet_length [expr {[string length $BUFFER] - $NEXT_START - 1}]
+      set eof_length [string length $::bpacket::EOF]
+
+      set packet_length [expr {[string length $BUFFER] - $NEXT_START - $eof_length}]
 
       # puts "$packet_length vs expected $NEXT_SIZE"
 
-      if {$packet_length == $NEXT_SIZE && [string equal [string index $BUFFER end] \x00]} {
+      if {$packet_length == $NEXT_SIZE && [string match "*${::bpacket::EOF}" $BUFFER]} {
         # This is the best case scenario, in this case
         # we can be almost certain our $BUFFER consistutes
         # one single bpacket.
@@ -206,11 +191,11 @@ proc ::bpacket::headerstart data {
         #
         # Should we grab a packet and not find our wrapper on the next
         # bytes, we need
-        set packet [string range $BUFFER 0 [expr {$NEXT_START + $NEXT_SIZE}]]
-        set BUFFER [string range $BUFFER [expr {$NEXT_START + $NEXT_SIZE + 1}] end]
+        set packet [string range $BUFFER 0 [expr {$NEXT_START + $NEXT_SIZE + $eof_length - 1}]]
+        set BUFFER [string range $BUFFER [expr {$NEXT_START + $NEXT_SIZE + $eof_length}] end]
 
         # $packet should now begin with our wrapper and end with a NULL.
-        if {[string equal [string index $packet end] \x00]} {
+        if {[string match "*${::bpacket::EOF}" $BUFFER]} {
           # Our packet has been verified!
           lappend PACKETS $packet
         } else {
@@ -234,7 +219,7 @@ proc ::bpacket::headerstart data {
           #       the blocks that we have received and make them fit to create a
           #       proper bpacket format.
           set BUFFER [bpacket headerstart \
-            [string trimleft $packet$BUFFER $::bpacket::WRAPPER]
+            [string trimleft $packet$BUFFER $::bpacket::HEADER]
           ]
         }
       } else {
@@ -254,24 +239,36 @@ proc ::bpacket::headerstart data {
   }
 }
 
+::oo::define ::bpacket::stream method reset {} {
+  set BUFFER     {}
+  set NEXT_SIZE  -1
+  set NEXT_START -1
+}
+
 ::oo::define ::bpacket::stream method Dispatch {} {
-  set results [list]
+  # cancel any timeouts that may be scheduled already
+  if {[dict exists $TIMEOUTS dispatch]} {
+    after cancel [dict get $TIMEOUTS dispatch]
+    dict unset TIMEOUTS dispatch
+  }
   while {[llength $PACKETS]} {
     try {
       set PACKETS [lassign $PACKETS packet]
-      lappend results [::cluster::packet::decode $packet]
+      {*}$CALLBACK $packet [self]
     } on error {result options} {
       # When we do encounter a malformed packet, we will handle
       # the error before passing it to the user?
+      # Until we know how to handle this, we will rethrow it
       # TODO: ?
+      throw error $result
     }
   }
-  return $results
 }
 
 ::oo::define ::bpacket::stream method Run args {
-  after 0 [info coroutine]
-  yield   [info coroutine]
+  dict set TIMEOUTS initialize [after 0 [list catch [list [info coroutine]]]
+  yield [info coroutine]
+
   my Status RUNNING
 
   chan configure $CHAN \
@@ -279,19 +276,23 @@ proc ::bpacket::headerstart data {
     -translation binary \
     -buffering   none
 
-  chan event $CHAN readable [list [info coroutine] READ]
+  chan event $CHAN readable [list catch [list [info coroutine] READ]]
 
   while {$STATUS ne "CLOSED"} {
-    set action [yield]
+    set args [lassign [yield] action]
     switch -- $action {
+      CLOSING {
+        catch { chan close $CHAN }
+        my Status CLOSED
+      }
       READ {
         if {[chan eof $CHAN]} {
           # Our channel has been closed
-          chan close $CHAN
+          catch { chan close $CHAN }
           my Status CLOSED
         }
         # Adds data to the buffer
-        my append [chan read $CHAN]
+        my Append [chan read $CHAN]
       }
     }
   }
