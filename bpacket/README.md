@@ -147,6 +147,16 @@ proc decode encoded {
 
 ## Encoding Notes
 
+### Packet Encoding
+
+  1. Header - `$::bpacket::HEADER` (customizable if needed)
+  2. varint - total packet length as a varint value
+  3. packet
+    - Each value encoded as `$varint$data` where the varint is the field_id provided by the template.  It is up to the fields type to properly decode the field.
+  4. Footer - `$::bpacket::EOF` (customizable if needed)
+
+This format is utilized to aid in efficiently parsing the packets as they are sent over various protocols including those which do not guarantee the integrity of the data received.
+
 ### varint
 
 > Each byte in a varint, except the last byte, has the most significant bit (msb) set – this indicates that there are further bytes to come. The lower 7 bits of each byte are used to store the two's complement representation of the number in groups of 7 bits, least significant group first.
