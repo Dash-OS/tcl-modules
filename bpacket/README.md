@@ -270,7 +270,8 @@ The process that is followed when adding a type is as follows:
 So adding a new type is as simple as defining it within the `::bpacket::type` namespace by its name.
 
 All types follow the same general template.  Below is an example of the "flags"
-type.
+type.  Each built-in type can be found [here](https://github.com/Dash-OS/tcl-modules/tree/master/bpacket/type).  
+Always open to pull requests for improvements and additions.
 
 ```tcl
 # CUSTOM BPACKET TYPE TEMPLATE
