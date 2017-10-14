@@ -2,18 +2,16 @@
 
 > Documentation is a work in progress
 
-`[bpacket]` was built to provide a compact binary wire protocol.  It attempts to pack information as tightly as possible for transmission in many-to-many communication protocols like [tcl-cluster](https://github.com/Dash-OS/tcl-cluster).
+`[bpacket]` is a package that makes encoding & decoding compact binary packets to transmit your data on the wire or other bandwidth-sensitive situations.  It attempts to pack information as tightly as possible for transmission in many-to-many communication protocols like [tcl-cluster](https://github.com/Dash-OS/tcl-cluster).
 
 ## Binary Template
 
 Before we can encode/decode packets that `bpacket` will create for us, we need to provide it with a template which it will use.  This allows us to optimize and customize our packets to our specific use-case.
 
-> **Note:** As of writing this readme, asterix (required) values is not enforced by the package.  For now they will simply be ignored, however we do plan to add such enforcement in future version(s).
+A template maps the structure of our data that we want to transmit.  Each
+field that might be present.  
 
-bpacket supports various value types.  The template allows us to define
-how we will provide each value and how they will be formed.  At this time all values are completely optional.  
-
-> **Tip:** Values can be encoded/decoded in any order
+> **Tip:** Values may be encoded/decoded in any order
 
 |  Type  |  Description  |
 | :----------: |:----------- |

@@ -1,29 +1,5 @@
 namespace eval ::bpacket {}
 
-set ::bpacket::value_types [dict create \
-  vint       0 \
-  string     2 \
-  bool      15 \
-  flags     16 \
-  list      17 \
-  dict      18 \
-  container 19 \
-  raw       20 \
-  aes       21
-]
-
-set ::bpacket::value_ids [dict create \
-   0 vint \
-   2 string \
-  15 bool \
-  16 flags \
-  17 list \
-  18 dict \
-  19 container \
-  20 raw \
-  21 aes
-]
-
 ::oo::define ::bpacket::writer {
   variable PACKET FIELDS TEMPLATE
 }
@@ -80,55 +56,65 @@ set ::bpacket::value_ids [dict create \
   }
 }
 
-::oo::define ::bpacket::writer method build { data } {
-  if { $TEMPLATE eq {} } { throw error "Building required template" }
-  lassign $TEMPLATE schema map required
+::oo::define ::bpacket::writer method build data {
+  if { $TEMPLATE eq {} } {
+    return \
+      -code error \
+      -errorCode [list BINARY_PACKET WRITE BUILD_FROM_TEMPLATE TEMPLATE_MISSING] \
+      " tried to build a bpacket but have not provided a template yet"
+  }
+  dict with TEMPLATE {} ; # -> schema map required
+
   dict for {k v} $data {
-    if { [dict exists $map $k] } {
+    if {[dict exists $map $k]} {
       lassign [dict get $map $k] value_type required params
       set field_id $k
     } elseif { [dict exists $schema $k] } {
-
+      # ?
     } else {
       throw error "Encoding Failed: $k is not a known field"
     }
-    my append [ my field $field_id $value_type $v ]
+    my append [my field $field_id $value_type $v]
   }
+
   return [my get]
 }
 
-::oo::define ::bpacket::writer method template { template } {
-  set schema [dict create] ; set map [dict create] ; set required [list]
-  foreach line [split $template \n] {
-    set line [string trim $line]
-    if { $line eq {} } { continue }
-    lassign [split $line |] params field_id args
-    set field_id [string trim $field_id]
-    if { "*" in $params } {
-      set req 1
-      lappend required $field_id
-      set params [lsearch -all -inline -not -exact $params "*"]
-    } else { set req 0 }
-    set keys [lassign $params value_type]
-    if { [dict exists $::bpacket::value_types $value_type] } {
-      set value_type [dict get $::bpacket::value_types $value_type]
-    }
-    set params [list $value_type $req $keys]
-    if {$args ne {}} {
-      set args [list {*}$args]
-      lappend params $args
-    }
-    foreach key $keys {
-      dict set schema $key [dict create id $field_id type $value_type]
-      if { $req } { dict set schema $key required $req }
-      if {$args ne {}} {
-        dict set schema $key args $args
-      }
-    }
-    dict set map $field_id $params
-  }
-  set TEMPLATE [list $schema $map $required]
-  return $TEMPLATE
+# ::oo::define ::bpacket::writer method template { template } {
+#   set schema [dict create] ; set map [dict create] ; set required [list]
+#   foreach line [split $template \n] {
+#     set line [string trim $line]
+#     if { $line eq {} } { continue }
+#     lassign [split $line |] params field_id args
+#     set field_id [string trim $field_id]
+#     if { "*" in $params } {
+#       set req 1
+#       lappend required $field_id
+#       set params [lsearch -all -inline -not -exact $params "*"]
+#     } else { set req 0 }
+#     set keys [lassign $params value_type]
+#     if { [dict exists $::bpacket::value_types $value_type] } {
+#       set value_type [dict get $::bpacket::value_types $value_type]
+#     }
+#     set params [list $value_type $req $keys]
+#     if {$args ne {}} {
+#       set args [list {*}$args]
+#       lappend params $args
+#     }
+#     foreach key $keys {
+#       dict set schema $key [dict create id $field_id type $value_type]
+#       if { $req } { dict set schema $key required $req }
+#       if {$args ne {}} {
+#         dict set schema $key args $args
+#       }
+#     }
+#     dict set map $field_id $params
+#   }
+#   set TEMPLATE [list $schema $map $required]
+#   return $TEMPLATE
+# }
+::oo::define ::bpacket::writer method template template {
+  set TEMPLATE $template
 }
 
 # append a uint64 value to our packet
@@ -207,7 +193,7 @@ set ::bpacket::value_ids [dict create \
         }
         set values [my uint64 [llength $args]]
         foreach n $args {
-          lappend values [ my uint64 $n ]
+          lappend values [my uint64 $n]
         }
         set value [join $values {}]
       }
@@ -248,8 +234,10 @@ set ::bpacket::value_ids [dict create \
   }
 }
 
-# convert packet to hex
-::oo::define ::bpacket::writer method hex { {h H} } {
-  binary scan $PACKET $h* hex
-  return $hex
+# convert entire packet or buffer to hex
+::oo::define ::bpacket::writer method hex { {what packet} {type H} } {
+  binary scan [set [string toupper $what]] ${type}* hex
+  if {[info exists hex]} {
+    return $hex
+  }
 }

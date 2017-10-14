@@ -34,26 +34,42 @@ proc ::bpacket::decode::varint data {
 
 ::oo::define ::bpacket::reader {
   variable PACKET BUFFER EXPECTED_LENGTH
+  # by providing a template, we can automatically
+  # decode data and provide it to the caller
+  variable TEMPLATE
 }
 
-::oo::define ::bpacket::reader constructor packet {
-  my set $packet
+::oo::define ::bpacket::reader constructor {{packet {}} {template {}}} {
+  if {$template ne {}} {
+    my template $template
+  } else {
+    set TEMPLATE {}
+  }
+  if {$packet ne {}} {
+    my set $packet
+  } else {
+    set BUFFER {}
+    set PACKET {}
+  }
+}
+
+::oo::define ::bpacket::reader method template {template} {
+  set TEMPLATE $template
 }
 
 ::oo::define ::bpacket::reader method reset {} {
   set BUFFER $PACKET
 }
 
-::oo::define ::bpacket::reader method set { packet } {
-  set PACKET $packet
-  set BUFFER $packet
+::oo::define ::bpacket::reader method set packet {
   if {![string match "${::bpacket::HEADER}*" $packet]} {
-    [self] destroy
     tailcall return \
       -code error \
       -errorCode [list BINARY_PACKET READ VALIDATE INVALID_HEADER] \
       " the received packet does not appears to start with the expected header value"
   }
+  set PACKET $packet
+  set BUFFER $packet
   set BUFFER [string trimleft $BUFFER $::bpacket::HEADER]
   set EXPECTED_LENGTH [my varint]
 }
@@ -233,4 +249,90 @@ proc ::bpacket::decode::varint data {
     }
   }
   return [list 1 $id $type $data]
+}
+
+proc ::cluster::packet::decode { packet {cluster {}} } {
+  try {
+    # ~! "Decode Packet" "Decoding a Packet [string bytelength $packet]"
+    set reader  [::bpacket::reader new $packet]
+    set result  [dict create]
+    set results [list]
+    set active 1
+    while {$active} {
+      lassign [$reader next] active id type data
+      switch -- $active {
+        0 {
+          # We are done parsing the packet!
+          lappend results $result
+          break
+        }
+        1 {
+            # We have more to parse!
+            switch -- $id {
+            1  {
+              lassign $data type channel
+              dict set result type $type
+              dict set result channel $channel
+            }
+            2  { dict set result hid $data }
+            3  { dict set result sid $data }
+            4  { dict set result flags $data }
+            5  { dict set result timestamp $data }
+            6  { dict set result protocols $data }
+            7  { dict set result ruid $data }
+            8  { dict set result op $data }
+            9  { dict set result data $data }
+            10 { dict set result raw $data }
+            11 { dict set result tags $data }
+            12 { dict set result keepalive $data }
+            13 {
+              # When we receive a filter we will immediately try to check with the
+              # cluster if our service matches and quit decoding immediately if we
+              # dont.
+              if { $cluster ne {} && ! [$cluster check_filter $data] } {
+                break
+              }
+              dict set result filter $data
+            }
+            14 {
+              dict set result error $data
+            }
+          }
+        }
+        2 {
+          # We are done with a packet -- but another might still be
+          # available!
+          lappend results $result
+          set result [dict create]
+        }
+      }
+    }
+    $reader destroy
+  } on error {result options} {
+    puts stderr "Malformed Packet! $result"
+    catch { ::onError $result $options "Malformed Packet!" }
+    catch { $reader destroy }
+  }
+  if { $active } {
+    set result {}
+  }
+  return $results
+}
+
+
+::oo::define ::bpacket::reader method decode {{template {}}} {
+  if {$template ne {}} {
+    my template $template
+  }
+
+  if {$TEMPLATE eq {}} {
+    return \
+      -code error \
+      -errorCode [list BINARY_PACKET READ DECODE MISSING_TEMPLATE] \
+      " tried to decode a bpacket but have not provided a template, did you mean next?"
+  }
+
+  set result  [dict create]
+  set results [list]
+  set active  1
 }

@@ -1,41 +1,8 @@
-# checks if the data is wrapped in the $::bpacket::HEADER
-proc ::bpacket::wrapstart data {
-  set length [string length $::bpacket::HEADER]
-  # if the string is wrapped, checked if the value right after it is
-  # also a wrapper
-  binary scan $data a${length} wrapper
-  # puts $a
-  if {[info exists wrapper] && [string equal $wrapper $::bpacket::HEADER]} {
-    # the first character is the wrapper, however this may be
-    # the end of one and the start of another
-    return true
-  }
-  return false
+if {[info command ::bpacket::classes::stream] eq {}} {
+  ::oo::class create ::bpacket::classes::stream {}
 }
 
-# searches the value for $::bpacket::HEADER and returns the index
-# when this is called we are looking for the "start" wrapper and
-# are trashing everything else that may precede it since we don't
-# have the bytes required to complete the previous packet.
-#
-# returns either an empty string or the packet with preceeding junk
-# removed, signaling the start of a bpacket.
-proc ::bpacket::headerstart data {
-  set length [string length $::bpacket::HEADER]
-  set idx    [string first $::bpacket::HEADER $data]
-  if {$idx == -1} {
-    # we could not find the wrapper in the given string
-    return
-  }
-  if {$idx == 0} {
-    set buf $data
-  } else {
-    set buf [string range $data $idx end]
-  }
-  return $buf
-}
-
-::oo::define ::bpacket::stream {
+::oo::define ::bpacket::classes::stream {
   variable STATUS BUFFER PACKETS CHAN CALLBACK
   # when building a chunked packet we will populate these values indicating
   # what we are expecting in terms of packet length.
@@ -47,7 +14,7 @@ proc ::bpacket::headerstart data {
   variable TIMEOUTS
 }
 
-::oo::define ::bpacket::stream constructor args {
+::oo::define ::bpacket::classes::stream constructor args {
   set TIMEOUTS   [dict create]
   set PACKETS    [list]
   set STATUS     NEW
@@ -69,7 +36,7 @@ proc ::bpacket::headerstart data {
   }
 }
 
-::oo::define ::bpacket::stream destructor {
+::oo::define ::bpacket::classes::stream destructor {
   dict for {name id} $TIMEOUTS {
     after cancel $id
   }
@@ -77,12 +44,12 @@ proc ::bpacket::headerstart data {
     [namespace current]::runner CLOSING
   }
   # safety check
-  if {$CHAN in [chan names]} {
+  if {$CHAN ne {} && $CHAN in [chan names]} {
     catch { chan close $CHAN }
   }
 }
 
-::oo::define ::bpacket::stream method use chan {
+::oo::define ::bpacket::classes::stream method use chan {
   if {$CHAN eq {}} {
     set CHAN $chan
     coroutine [namespace current]::runner my Run
@@ -95,22 +62,22 @@ proc ::bpacket::headerstart data {
   return
 }
 
-::oo::define ::bpacket::stream method Status {status args} {
+::oo::define ::bpacket::classes::stream method Status {status args} {
   set STATUS $status
 }
 
-::oo::define ::bpacket::stream method event callback {
+::oo::define ::bpacket::classes::stream method event callback {
   set CALLBACK $callback
   dict set TIMEOUTS dispatch [after 0 [namespace code [list my Dispatch]]]
 }
 
-::oo::define ::bpacket::stream method prop prop {
+::oo::define ::bpacket::classes::stream method prop prop {
   return [set [string toupper $prop]]
 }
 
 # When append is called, we will add more data to the buffer
 # and attempt to build a fully formed packet.
-::oo::define ::bpacket::stream method Append data {
+::oo::define ::bpacket::classes::stream method append data {
   set initial [expr {[string length $BUFFER] == 0}]
   if {$initial} {
     # this is the initial data and we can begin parsing
@@ -133,12 +100,21 @@ proc ::bpacket::headerstart data {
   }
   # at this point, if our buffer has any data in it, we will attempt
   # to parse the buffer into packets which can be dispatched
-  my Flush
+  #
+  # by doing this asynchronously we also allow more data to come in
+  # if needed before flushing the data
+  if {![dict exists $TIMEOUTS flush]} {
+    dict set TIMEOUTS flush [after 0 [namespace code [list my flush]]]
+  }
 }
 
 # flush the buffer by attempting to read the current buffer and attempt
 # to capture a complete packet
-::oo::define ::bpacket::stream method Flush {} {
+::oo::define ::bpacket::classes::stream method flush {} {
+  if {[dict exists $TIMEOUTS flush]} {
+    after cancel [dict get $TIMEOUTS flush]
+    dict unset TIMEOUTS flush
+  }
   if {$BUFFER ne {}} {
     # here we want to verify that our BUFFER starts with our
     # wrapper value.  if something gets messed up in some way
@@ -239,13 +215,13 @@ proc ::bpacket::headerstart data {
   }
 }
 
-::oo::define ::bpacket::stream method reset {} {
+::oo::define ::bpacket::classes::stream method reset {} {
   set BUFFER     {}
   set NEXT_SIZE  -1
   set NEXT_START -1
 }
 
-::oo::define ::bpacket::stream method Dispatch {} {
+::oo::define ::bpacket::classes::stream method Dispatch {} {
   # cancel any timeouts that may be scheduled already
   if {[dict exists $TIMEOUTS dispatch]} {
     after cancel [dict get $TIMEOUTS dispatch]
@@ -254,7 +230,7 @@ proc ::bpacket::headerstart data {
   while {[llength $PACKETS]} {
     try {
       set PACKETS [lassign $PACKETS packet]
-      {*}$CALLBACK $packet [self]
+      {*}$CALLBACK $packet
     } on error {result options} {
       # When we do encounter a malformed packet, we will handle
       # the error before passing it to the user?
@@ -265,7 +241,10 @@ proc ::bpacket::headerstart data {
   }
 }
 
-::oo::define ::bpacket::stream method Run args {
+# channel handling here is completely optional - if not used
+# you can simply copy what this is doing by calling
+# $stream append $pkt
+::oo::define ::bpacket::classes::stream method Run args {
   dict set TIMEOUTS initialize [after 0 [list catch [list [info coroutine]]]
   yield [info coroutine]
 
@@ -292,7 +271,7 @@ proc ::bpacket::headerstart data {
           my Status CLOSED
         }
         # Adds data to the buffer
-        my Append [chan read $CHAN]
+        my append [chan read $CHAN]
       }
     }
   }
