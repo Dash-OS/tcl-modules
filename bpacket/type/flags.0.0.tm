@@ -17,20 +17,55 @@ if {[info command ::bpacket::type::$::bpacket::type::current] eq {}} {
 
 ::oo::define ::bpacket::type::$::bpacket::type::current \
   method @encode::$::bpacket::type::current {value field args} {
-    append response [my @encode::varint [llength $value]]
-    foreach flag $value {
-      append response [my @encode::boolean $flag]
+    set values [list]
+
+    if {[dict exists $field args]} {
+      # when args are defined, each flag has a key
+      set keys [dict get $field args]
+      foreach key $keys {
+        if {[dict exists $value key]} {
+          lappend values [dict get $value key]
+        } else {
+          # we keep going until a key is not present - the rest are ignored
+          # this will likely throw an error in the future.
+          break
+        }
+      }
+    } else {
+      # when no args are provided, each value should be a boolean
+      set values $value
     }
-    return $response
+
+    append encoded [my @encode::varint [llength $values]]
+
+    foreach flag $values {
+      append encoded [my @encode::boolean $flag]
+    }
+
+    return $encoded
   }
 
 ::oo::define ::bpacket::type::$::bpacket::type::current \
   method @decode::$::bpacket::type::current {field args} {
     set length [my @decode::varint]
-    set flags  [list]
+
+    if {[dict exists $field args]} {
+      set keys   [dict get $field args]
+      set decoded [dict create]
+    } else {
+      set decoded [list]
+    }
+
     while {$length > 0} {
-      lappend flags [my @decode::varint]
+      set flag [my @decode::boolean]
+      if {[info exists keys]} {
+        set keys [lassign $keys key]
+        dict set decoded $key $flag
+      } else {
+        lappend decoded $flag
+      }
       incr length -1
     }
-    return $flags
+
+    return $decoded
   }
