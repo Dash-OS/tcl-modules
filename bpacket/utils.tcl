@@ -84,9 +84,12 @@ proc ::bpacket::template template {
       required $required \
       type     $type \
       name     $name \
-      version  $version \
-      args     $args
+      version  $version
     ]
+
+    if {$args ne {}} {
+      dict set fields $field_id args $args
+    }
 
     dict set index $name $field_id
 
@@ -188,3 +191,44 @@ proc ::bpacket::register {type id {force false}} {
   dict set ::bpacket::REGISTRY $type $id
   dict set ::bpacket::REGISTRY $id   $type
 }
+
+
+package require tcc4tcl
+
+set tcc4tcl [tcc4tcl::new]
+
+$tcc4tcl ccode {
+  #include <stdio.h>
+  #include <stdint.h>
+
+  int encode_unsigned_varint(uint8_t *const buffer, uint64_t value)
+  {
+    printf("starting\n");
+      int encoded = 0;
+
+      do
+      {
+          uint8_t next_byte = value & 0x7F;
+          value >>= 7;
+
+          if (value)
+              next_byte |= 0x80;
+
+          buffer[encoded++] = next_byte;
+
+      } while (value);
+
+
+      return encoded;
+  }
+}
+
+$tcc4tcl cproc test {long value} char {
+  char* buffer[10];
+  encode_unsigned_varint(*buffer, value);
+  printf("done\n");
+  return buffer;
+}
+
+
+$tcc4tcl go

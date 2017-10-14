@@ -17,8 +17,25 @@ if {[info command ::bpacket::type::$::bpacket::type::current] eq {}} {
 
 ::oo::define ::bpacket::type::$::bpacket::type::current \
   method @encode::$::bpacket::type::current {value field args} {
-    append response [my @encode::varint [llength $value]]
-    foreach num $value {
+    set values [list]
+
+    if {[dict exists $field args]} {
+      set keys [dict get $field args]
+      foreach key $keys {
+        if {[dict exists $value key]} {
+          lappend values [dict get $value key]
+        } else {
+          # we keep going until a key is not present - the rest are ignored
+          break
+        }
+      }
+    } else {
+      set values $value
+    }
+
+    append response [my @encode::varint [llength $values]]
+
+    foreach num $values {
       if {![string is entier -strict $num]} {
         tailcall return \
           -code error \
@@ -27,16 +44,31 @@ if {[info command ::bpacket::type::$::bpacket::type::current] eq {}} {
       }
       append response [my @encode::varint $num]
     }
+
     return $response
   }
 
 ::oo::define ::bpacket::type::$::bpacket::type::current \
   method @decode::$::bpacket::type::current {field args} {
     set length [my @decode::varint]
-    set flags  [list]
+
+    if {[dict exists $field args]} {
+      set keys   [dict get $field args]
+      set result [dict create]
+    } else {
+      set result [list]
+    }
+
     while {$length > 0} {
-      lappend flags [my @decode::varint]
+      set num [my @decode::varint]
+      if {[info exists keys]} {
+        set keys [lassign $keys key]
+        dict set result $key $num
+      } else {
+        lappend result $num
+      }
       incr length -1
     }
-    return $flags
+
+    return $result
   }

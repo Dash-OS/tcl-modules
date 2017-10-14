@@ -8,125 +8,161 @@
 
 Before we can encode/decode packets that `bpacket` will create for us, we need to provide it with a template which it will use.  This allows us to optimize and customize our packets to our specific use-case.
 
-A template maps the structure of our data that we want to transmit.  Each
-field that might be present.  
-
-> **Tip:** Values may be encoded/decoded in any order
+Our template provides us with a structure that allows us to optimize specific
+values that may come up.  When encoding, a dict is expected that matches
+the template "names".  An identical dict will be provided when decoding.
 
 |  Type  |  Description  |
 | :----------: |:----------- |
-| vint | a [varint](https://developers.google.com/protocol-buffers/docs/encoding#varints)-like value which packs entier values as tightly as possible. |
+| varint | a [varint](https://developers.google.com/protocol-buffers/docs/encoding#varints)-like value which packs entier values as tightly as possible. |
 | string | a utf-8 encoded string value |
-| bool | a boolean value |
-| flags | a list of varints prefixed by the list length |
-| list | a list of strings |
-| dict | a key/value pairing of values where only the values are encoded, the keys are constructed when decoding |
-| container | containers can be thought of as namespaces within our packets.  They allow us to continue formatting values in a nested manner, but to provide a namespace to a given group of values. |
+| boolean | a boolean value |
+| flags | a list of booleans prefixed by the list length, optionally with keys (dict values -> flags) |
+| numlist | a list of varints prefixed by the list length, optionally with keys (dict values -> numlist) |
+| float | a 32-bit or 64-bit float |
+| vfloat | a (highly-experimental) method of encoding highly compact simple float values |
+| list | a length-delimited list of strings |
+| dict | a key/value pairing of values where only the values are encoded as a list, the keys are re-constructed when decoding.  all values encoded as string. |
 | raw | a raw length-delimited value (no encoding or modification) |
-| aes | _Future_ aes encryption of value with provided key |
 
 ```tcl
+# request side
 package require bpacket
 
-set encoder [::bpacket::writer new]
-
-$encoder template {
-  * flags  type channel   | 1
-  * string hid            | 2
-  * string sid            | 3
-    flags  known f2 f3 f4 | 4
-    vint   timestamp      | 5
-  * list   protocols      | 6
-    string ruid           | 7
-    string op             | 8
-    string data           | 9
-    aes    raw            | 10
-    list   tags           | 11
-    bool   keepalive      | 12
-    list   filter         | 13
-    string error          | 14
+set template {
+  1 varint timestamp
+  2 dict   request   | {
+    id
+    body
+  }
+  3 dict   response  | {
+    id
+    result
+    body
+  }
 }
+
+bpacket create io ::io $template
+
+proc encode data {
+  set encoded [io encode $req]
+
+  # --> transmit binary request
+}
+
+encode [dict create \
+  timestamp [clock seconds] \
+  request   [dict create \
+    id   my_request \
+    body request!
+  ]
+]
 ```
 
-## Decoding Packets
-
-Decoding our protocol is done by creating a "reader" object.  We can then iterate through the given packet until completed. Each time we call `[$reader next]` it will return a list with our data.
-
-We will need to be aware of our template to understand how to parse the
-data properly.  
-
-Our reader is capable of handling multiple packets appended in the case that we receive more than one packet in a transmission (for example, when using udp protocol for transmission).
-
-> **Note:** Our longer term plan is to use the template value to automatically parse the given data.  There are a few details in our specific use-cases that make this difficult to do while allowing us to maintain absolutely efficiency during parsing.
-
 ```tcl
+# response side
 package require bpacket
 
-proc decode { packet {cluster {}} } {
-  set result [dict create]
-  set results [list]
-  try {
-    set reader [::bpacket::reader new $packet]
-    set active 1
-    while {$active} {
-      lassign [$reader next] active id type data
-      switch -- $active {
-        0 {
-          # We are done parsing the packet(s)!
-          lappend results $result
-          break
-        }
-        1 {
-            # We have more to parse!
-            switch -- $id {
-              1  {
-                lassign $data datatype channel
-                dict set result type $datatype
-                dict set result channel $channel
-              }
-              2  { dict set result hid $data }
-              3  { dict set result sid $data }
-              4  { dict set result flags $data }
-              5  { dict set result timestamp $data }
-              6  { dict set result protocols $data }
-              7  { dict set result ruid $data }
-              8  { dict set result op $data }
-              9  { dict set result data $data }
-              10 { dict set result raw $data }
-              11 { dict set result tags $data }
-              12 { dict set result keepalive $data }
-              13 { dict set result filter $data }
-              14 { dict set result error $data }
-          }
-        }
-        2 {
-          # We are done with a packet -- but another might still be
-          # available!
-          lappend results $result
-          set result [dict create]
-        }
-      }
-    }
-    $reader destroy
-  } on error {result options} {
-    #puts stderr "Malformed Packet! $result"
-    catch { $reader destroy }
+set template {
+  1 varint timestamp
+  2 dict   request   | {
+    id
+    body
   }
-  if { $active } { set result {} }
-  return $results
+  3 dict   response  | {
+    id
+    result
+    body
+  }
+}
+
+bpacket create io ::io $template
+
+# receives encoded request
+proc decode encoded {
+  set decoded [io decode $encoded]
+
+  set request [dict get $decoded request]
+
+  # do something
+
+  set res [dict create \
+    timestamp [clock seconds] \
+    response  [dict create \
+      id       [dict get $request id] \
+      result   ok  \
+      body     response!
+    ]
+  ]
+
+  set encoded [io encode $res]
+
+  # transmit back to requester
 }
 ```
 
 ## Encoding Notes
 
-### vint
+### varint
 
 > Each byte in a varint, except the last byte, has the most significant bit (msb) set – this indicates that there are further bytes to come. The lower 7 bits of each byte are used to store the two's complement representation of the number in groups of 7 bits, least significant group first.
 [...read more about varints](https://developers.google.com/protocol-buffers/docs/encoding#varints)
 
+varint values are used to pack numbers are varied lengths as tightly as possible.
+For example, comparing the [string length] of the value of [clock microseconds] at
+the time of writing this (1508014884331554):
+
+```tcl
+# varint
+package require bpacket
+
+# require varint manually
+package require bpacket::type::varint
+
+set n 1508014884331554
+
+set encoded [bpacket encode varint $n]
+set raw_compressed [zlib compress $n]
+set enc_compressed [zlib compress $encoded]
+
+puts "
+  Value: $n
+  Raw Length:                [string length $n]
+  Encoded Length:            [string length $encoded]
+  Raw Compressed Length:     [string length $raw_compressed]
+  Encoded Compressed Length: [string length $enc_compressed]
+"
+```
+
 ### flags
 
-also can be thought of as a "list of entiers", this is a length-delimited list of numbers following the pattern `$varint (llength) ...$varint (flag)...`
+Flags may also be thought of as a "list of booleans", this is a length-delimited list of booleans following the pattern `$varint (llength) ...$boolean (flag)...`
+
+How flags are expected to be presented depends on the template.  We will either
+expect a raw list of booleans (`[list true false true]`) or a dict where each
+key corresponds to a value in the fields args and its value being a boolean.
+
+```tcl
+set template {
+  1 flags flags1
+  2 flags flags2 | one two three
+}
+
+# would expect flags1 and flags2 to look like:
+set data [dict create \
+  flags1 [list false true true] \
+  flags2 [dict create one false two true three true]
+]
+```
+
+In the example above, providing arguments to the flags2 field allows us to  
+translate the values on each end while still providing the same sized packet. However, flags1 does allow us to have a dynamic number of flags if needed.
+
+### numlist
+
+A numlist is identical to flags in how it works.  However, a numlist will encode
+a list of varints prefixed by list length instead of booleans.  
+
 
 ### list
 

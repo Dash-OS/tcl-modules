@@ -125,7 +125,6 @@ if 0 {
     @if | $type {io}
       @arg template {BPTemplate}
         the template that the given io handler should use.
-
 }
 proc ::bpacket::create {type name args} {
   tailcall ::bpacket::classes::[string tolower $type] create $name {*}$args
