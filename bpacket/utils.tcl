@@ -11,9 +11,9 @@ variable ::bpacket::parse_template_re {(?x)
   \s*([^\s]*)    # the wire type
   \s*([^\s]*)    # our type_name value
 
-  (?:            # optional type arguments which can be used by a type to
-    (?=\s*\|)    # help encode/decode a value
-    \s*\|
+  (?:               # optional type arguments which can be used by a type to
+    (?=\s*\||\{)    # help encode/decode a value.  
+    \s*(?:\|)?
     (
       (?:            # when arguments need multi-line they may wrap the arguments
         (?=\s*["\{])  # in "" or {}
@@ -223,11 +223,13 @@ $tcc4tcl ccode {
   }
 }
 
-$tcc4tcl cproc test {long value} char {
+$tcc4tcl cproc test {Tcl_Interp* interp long value} ok {
   char* buffer[10];
   encode_unsigned_varint(*buffer, value);
-  printf("done\n");
-  return buffer;
+
+  Tcl_SetObjResult(interp, Tcl_NewStringObj(*buffer, -1));
+
+  return (TCL_OK);
 }
 
 

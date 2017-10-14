@@ -12,7 +12,7 @@ set template {
   1  flags   props | type channel
   2  string  hid
   3  string  sid
-  4  flags   numlist | known
+  4  numlist nlist | known
   5  varint  timestamp
   6  list    protocols
   7  string  ruid
