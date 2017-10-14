@@ -30,10 +30,6 @@ if {[info command ::bpacket::classes::io] eq {}} {
   my @reset::types
 }
 
-::oo::define ::bpacket::classes::io method totemplate dict {
-  return [bpacket totemplate $TEMPLATE $dict]
-}
-
 ::oo::define ::bpacket::classes::io method reset {} {
   my @reset::types
 }
@@ -123,13 +119,6 @@ if 0 {
 }
 
 ::oo::define ::bpacket::classes::io method encode data {
-  if { $TEMPLATE eq {} } {
-    return \
-      -code error \
-      -errorCode [list BINARY_PACKET ENCODE BUILD_FROM_TEMPLATE TEMPLATE_MISSING] \
-      " tried to build a bpacket but have not provided a template yet"
-  }
-
   set ENCODE_BUFFER {}
 
   dict for {name value} $data {
@@ -147,6 +136,10 @@ if 0 {
     [my @encode::varint [string length $ENCODE_BUFFER]] \
     $ENCODE_BUFFER \
     $::bpacket::EOF
+
+  set ENCODE_BUFFER {}
+
+  return $encoded
 }
 
 ::oo::define ::bpacket::classes::io method @write::field {field_id field value} {

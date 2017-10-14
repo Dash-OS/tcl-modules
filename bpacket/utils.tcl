@@ -1,18 +1,26 @@
 namespace eval ::bpacket {}
 namespace eval ::bpacket::decode {}
 
-# parses the template syntax to produce a dict
-# see bpacket/utils.tcl for formatting.
+if 0 {
+  @ bpacket template parsing
+    parses the template syntax to produce a dict.  each bpacket
+    field in a template follows:
+    $field_id $type $name | ...$args
+
+    where the "pipe" indicates the start of arguments.
+
+    multi-line arguments are possible with {} in which case the
+    pipe can also be omitted if desired.
+}
 variable ::bpacket::parse_template_re {(?x)
   ^\s*(?=[0-9])  # our next value always begins with a number at the
                  # start of a line
   \s*([0-9]*)    # our field_id
-  \s*(\*)?       # is the value required?
   \s*([^\s]*)    # the wire type
   \s*([^\s]*)    # our type_name value
 
   (?:               # optional type arguments which can be used by a type to
-    (?=\s*\||\{)    # help encode/decode a value.  
+    (?=\s*\||\{)    # help encode/decode a value.
     \s*(?:\|)?
     (
       (?:            # when arguments need multi-line they may wrap the arguments
@@ -66,14 +74,12 @@ proc ::bpacket::template template {
   set fields [dict create]
   set types  [list]
   # parse the template and convert to dict
-  while {[regexp -- $::bpacket::parse_template_re $template matched \
-      field_id required type name args version \
+  while {[regexp -- $::bpacket::parse_template_re $template -> \
+      field_id type name args version \
         template
   ]} {
-    if {$required eq "*"} {
-      set required true
-    } else { set required false }
-
+    # version is not actually used by any types yet but it is
+    # parsed by adding "= $version" to any field.
     if {$version eq {}} {
       set version 0
     }
@@ -81,7 +87,6 @@ proc ::bpacket::template template {
     set args [string trim $args " \t\n\"\{\}"]
 
     dict set fields $field_id [dict create \
-      required $required \
       type     $type \
       name     $name \
       version  $version
@@ -105,6 +110,7 @@ proc ::bpacket::template template {
 
 if 0 {
   @ bpacket wrapstart | $data
+    checks to see if our bpacket header is at the start of our data
 }
 proc ::bpacket::wrapstart data {
   set length [string length $::bpacket::HEADER]
@@ -127,9 +133,8 @@ if 0 {
     have the bytes required to complete the previous packet.
 
     returns either an empty string or the packet with preceeding junk
-    removed, signaling the start of a bpacket.
+    removed, signaling the start of a bpacket (but not necessarily a complete).
 }
-
 proc ::bpacket::headerstart data {
   set length [string length $::bpacket::HEADER]
   set idx    [string first $::bpacket::HEADER $data]
@@ -137,10 +142,10 @@ proc ::bpacket::headerstart data {
     # we could not find the wrapper in the given string
     return
   }
-  if {$idx == 0} {
-    set buf $data
-  } else {
+  if {$idx != 0} {
     set buf [string range $data $idx end]
+  } else {
+    set buf $data
   }
   return $buf
 }
@@ -191,46 +196,3 @@ proc ::bpacket::register {type id {force false}} {
   dict set ::bpacket::REGISTRY $type $id
   dict set ::bpacket::REGISTRY $id   $type
 }
-
-
-package require tcc4tcl
-
-set tcc4tcl [tcc4tcl::new]
-
-$tcc4tcl ccode {
-  #include <stdio.h>
-  #include <stdint.h>
-
-  int encode_unsigned_varint(uint8_t *const buffer, uint64_t value)
-  {
-    printf("starting\n");
-      int encoded = 0;
-
-      do
-      {
-          uint8_t next_byte = value & 0x7F;
-          value >>= 7;
-
-          if (value)
-              next_byte |= 0x80;
-
-          buffer[encoded++] = next_byte;
-
-      } while (value);
-
-
-      return encoded;
-  }
-}
-
-$tcc4tcl cproc test {Tcl_Interp* interp long value} ok {
-  char* buffer[10];
-  encode_unsigned_varint(*buffer, value);
-
-  Tcl_SetObjResult(interp, Tcl_NewStringObj(*buffer, -1));
-
-  return (TCL_OK);
-}
-
-
-$tcc4tcl go

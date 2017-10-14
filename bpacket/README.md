@@ -375,3 +375,41 @@ if {[info command ::bpacket::type::$::bpacket::type::current] eq {}} {
     return $decoded
   }
 ```
+
+## Template Parsing
+
+If you want to parse the template for another language, the regular expression
+for parsing is fairly straight forward.  The following tcl expanded regexp is
+called in a loop until it no longer matches:
+
+```tcl
+# parses the template syntax to produce a dict
+# see bpacket/utils.tcl for formatting.
+variable ::bpacket::parse_template_re {(?x)
+  ^\s*(?=[0-9])  # our next value always begins with a number at the
+                 # start of a line
+  \s*([0-9]*)    # our field_id
+  \s*([^\s]*)    # the wire type
+  \s*([^\s]*)    # our type_name value
+
+  (?:               # optional type arguments which can be used by a type to
+    (?=\s*\||\{)    # help encode/decode a value.
+    \s*(?:\|)?
+    (
+      (?:            # when arguments need multi-line they may wrap the arguments
+        (?=\s*["\{])  # in "" or {}
+        (?:\s*"[^"]*")  # everything between ""
+        |                # or
+        (?:\s*\{[^\}]*)\}  # everything between {}
+      )
+      |             # OR, we expect a simple list of values up until EOL
+      (?:[^\n]+)
+    )
+  )?
+  (?:              # optionally provided a field version
+    (?=\s*\=)
+    \s*\=\s*([0-9]*)
+  )?
+  (.*)           # the rest of the template for further parsing
+}
+```
