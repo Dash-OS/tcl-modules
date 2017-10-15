@@ -1,5 +1,8 @@
 # While tuapi is what we ideally want to use, we fallback to running
 # exec when tuapi is not available.
+#
+# 10/14 - use tuapi to discover iface if needed
+#
 catch { package require tuapi }
 
 package require fileutil
@@ -94,8 +97,18 @@ proc ::unix::get { what args } {
         }
         linux {
           lassign $args iface
-          if { $iface eq {} } { set iface eth0 }
-          set file [file join / sys class net ${iface} address]
+          if {![catch {package require tuapi}]} {
+            if {$iface eq {}} {
+              set ifaces [::tuapi::syscall::ifconfig]
+              set ifaces [lsearch -inline -all -not -exact $ifaces lo]
+              set iface  [lindex $ifaces 0]
+            }
+            return [dict get [::tuapi::syscall::ifconfig $iface] hwaddr]
+          } else {
+            if { $iface eq {} } { set iface eth0 }
+            set file [file join / sys class net ${iface} address]
+          }
+
         }
       }
     }
