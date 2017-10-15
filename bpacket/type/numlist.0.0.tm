@@ -4,7 +4,7 @@ if 0 {
 }
 variable ::bpacket::type::current numlist
 
-bpacket register $::bpacket::type::current 7
+bpacket register $::bpacket::type::current 9
 
 if {[info command ::bpacket::type::$::bpacket::type::current] eq {}} {
   ::oo::class create ::bpacket::type::$::bpacket::type::current {}

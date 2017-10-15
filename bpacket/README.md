@@ -4,6 +4,20 @@
 
 `[bpacket]` is a package that makes encoding & decoding compact binary packets to transmit your data on the wire or other bandwidth-sensitive situations.  It attempts to pack information as tightly as possible for transmission in many-to-many communication protocols like [tcl-cluster](https://github.com/Dash-OS/tcl-cluster).
 
+## Size Comparisons
+
+To provide a comparison on final packed size, lets take a look at the following
+data which msgpack uses on their front page:
+
+> {"compact": true, "schema": 0}
+
+| Name | Length |
+| :---: | :---: |
+| JSON  | 27 bytes |
+| msgpack | 18 bytes |
+| bpacket | 9 bytes |
+| bpacket -raw | 4 bytes |
+
 ## Binary Template
 
 ```tcl

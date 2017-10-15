@@ -5,7 +5,7 @@ if 0 {
 }
 variable ::bpacket::type::current string
 
-bpacket register $::bpacket::type::current 1
+bpacket register $::bpacket::type::current 4
 
 if {[info command ::bpacket::type::$::bpacket::type::current] eq {}} {
   ::oo::class create ::bpacket::type::$::bpacket::type::current {}

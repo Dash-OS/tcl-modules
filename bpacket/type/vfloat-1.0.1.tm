@@ -10,9 +10,9 @@ if 0 {
     this will likely make storing smaller floats like percents much more
     efficient (at least double)
 }
-variable ::bpacket::type::current float
+variable ::bpacket::type::current vfloat
 
-bpacket register $::bpacket::type::current 4
+bpacket register $::bpacket::type::current 3
 
 if {[info command ::bpacket::type::$::bpacket::type::current] eq {}} {
   ::oo::class create ::bpacket::type::$::bpacket::type::current {}

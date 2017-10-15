@@ -6,7 +6,7 @@ if 0 {
 }
 variable ::bpacket::type::current raw
 
-bpacket register $::bpacket::type::current 3
+bpacket register $::bpacket::type::current 5
 
 if {[info command ::bpacket::type::$::bpacket::type::current] eq {}} {
   ::oo::class create ::bpacket::type::$::bpacket::type::current {

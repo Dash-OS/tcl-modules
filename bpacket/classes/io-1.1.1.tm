@@ -118,7 +118,7 @@ if 0 {
   }
 }
 
-::oo::define ::bpacket::classes::io method encode data {
+::oo::define ::bpacket::classes::io method encode {data args} {
   set ENCODE_BUFFER {}
 
   dict for {name value} $data {
@@ -131,11 +131,15 @@ if 0 {
     }
   }
 
-  append encoded \
-    $::bpacket::HEADER \
-    [my @encode::varint [string length $ENCODE_BUFFER]] \
-    $ENCODE_BUFFER \
-    $::bpacket::EOF
+  if {"-raw" in $args} {
+    set encoded $ENCODE_BUFFER
+  } else {
+    append encoded \
+      $::bpacket::HEADER \
+      [my @encode::varint [string length $ENCODE_BUFFER]] \
+      $ENCODE_BUFFER \
+      $::bpacket::EOF
+  }
 
   set ENCODE_BUFFER {}
 
@@ -144,27 +148,30 @@ if 0 {
 
 ::oo::define ::bpacket::classes::io method decode {packet args} {
   # first we need to validate that we have a valid packet.
-  if {![string match "${::bpacket::HEADER}*" $packet]} {
-    return \
-      -code error \
-      -errorCode [list BINARY_PACKET DECODE MALFORMED_PACKET INVALID_HEADER] \
-      " attempted to decode a bpacket which does not have a valid header"
-  } elseif {![string match "*${::bpacket::EOF}" $packet]} {
-    return \
-      -code error \
-      -errorCode [list BINARY_PACKET DECODE MALFORMED_PACKET INVALID_FOOTER] \
-      " attempted to decode a bpacket which does not have a valid footer"
+  if {"-raw" ni $args} {
+    if {![string match "${::bpacket::HEADER}*" $packet]} {
+      return \
+        -code error \
+        -errorCode [list BINARY_PACKET DECODE MALFORMED_PACKET INVALID_HEADER] \
+        " attempted to decode a bpacket which does not have a valid header"
+    } elseif {![string match "*${::bpacket::EOF}" $packet]} {
+      return \
+        -code error \
+        -errorCode [list BINARY_PACKET DECODE MALFORMED_PACKET INVALID_FOOTER] \
+        " attempted to decode a bpacket which does not have a valid footer"
+    }
+
+    set DECODE_BUFFER [string range $packet [string length $::bpacket::HEADER] end-[string length $::bpacket::EOF]]
+
+    set packet_length [my @decode::varint]
+
+    set DECODE_BUFFER [string range $DECODE_BUFFER 0 ${packet_length}+1]
+  } else {
+    set DECODE_BUFFER $packet
   }
 
-  set DECODE_BUFFER [string range $packet [string length $::bpacket::HEADER] end-[string length $::bpacket::EOF]]
-
-  set packet_length [my @decode::varint]
-
-  set DECODE_BUFFER [string range $DECODE_BUFFER 0 ${packet_length}+1]
-
   if {"-validate" in $args} {
-    # shimmer shimmer
-    set validate [dict get $args -validate]
+    set validate [lindex $args [expr {[lsearch $args -validate] + 1}]]
   }
 
   set result [dict create]

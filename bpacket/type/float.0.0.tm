@@ -8,7 +8,7 @@ if 0 {
 }
 variable ::bpacket::type::current float
 
-bpacket register $::bpacket::type::current 4
+bpacket register $::bpacket::type::current 2
 
 if {[info command ::bpacket::type::$::bpacket::type::current] eq {}} {
   ::oo::class create ::bpacket::type::$::bpacket::type::current {}

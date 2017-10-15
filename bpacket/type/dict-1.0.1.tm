@@ -11,7 +11,7 @@ if 0 {
 }
 variable ::bpacket::type::current dict
 
-bpacket register $::bpacket::type::current 5
+bpacket register $::bpacket::type::current 7
 
 if {[info command ::bpacket::type::$::bpacket::type::current] eq {}} {
   ::oo::class create ::bpacket::type::$::bpacket::type::current {}

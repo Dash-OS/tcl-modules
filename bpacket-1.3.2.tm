@@ -60,6 +60,11 @@ if 0 {
   }
 }
 
+set template {
+  1 boolean compact
+  2 varint schema
+}
+
 namespace eval ::bpacket {
   namespace ensemble create
   namespace export {[a-z]*}
@@ -107,9 +112,6 @@ source -encoding utf-8 [file join \
   utils.tcl
 ]
 
-package require bpacket::classes::io
-package require bpacket::classes::stream
-
 if 0 {
   @ bpacket create | $type $name ...$args
     Allows creation of the various bpacket classes
@@ -127,5 +129,13 @@ if 0 {
         the template that the given io handler should use.
 }
 proc ::bpacket::create {type name args} {
+  switch -nocase -- $type {
+    io {
+      package require bpacket::classes::io
+    }
+    stream {
+      package require bpacket::classes::stream
+    }
+  }
   tailcall ::bpacket::classes::[string tolower $type] create $name {*}$args
 }
