@@ -159,7 +159,7 @@ if 0 {
     [my @encode::$type $value $field]
 }
 
-::oo::define ::bpacket::classes::io method decode packet {
+::oo::define ::bpacket::classes::io method decode {packet args} {
   # first we need to validate that we have a valid packet.
   if {![string match "${::bpacket::HEADER}*" $packet]} {
     return \
@@ -179,10 +179,22 @@ if 0 {
 
   set DECODE_BUFFER [string range $DECODE_BUFFER 0 ${packet_length}+1]
 
+  if {"-while" in $args} {
+    # shimmer shimmer
+    set while [dict get $args -while]
+  }
+
   set result [dict create]
 
   while {$DECODE_BUFFER ne {}} {
     set field [my next]
+    if {[info exists while]} {
+      if {![{*}$while $field]} {
+        set DECODE_BUFFER {}
+        set result [dict create]
+        break
+      }
+    }
     dict set result [dict get $field name] [dict get $field value]
   }
 
