@@ -142,23 +142,6 @@ if 0 {
   return $encoded
 }
 
-::oo::define ::bpacket::classes::io method @write::field {field_id field value} {
-  set type [dict get $field type]
-  # Encoding a field is handled by the type mixins which have been included.
-  # Each field is formatted starting with its field number followed by its
-  # encoded value.
-  #
-  # the decoder will then be able to read the field number and compare it
-  # with its template to determine how to properly decode the packet.
-
-  # We deviate from protocol buffers here to allow any wire_type here.  Since
-  # we are accepting values above 12(?)+- we can not follow their protocol
-  # directly.
-  append encoded \
-    [my @encode::varint $field_id] \
-    [my @encode::$type $value $field]
-}
-
 ::oo::define ::bpacket::classes::io method decode {packet args} {
   # first we need to validate that we have a valid packet.
   if {![string match "${::bpacket::HEADER}*" $packet]} {
@@ -179,20 +162,32 @@ if 0 {
 
   set DECODE_BUFFER [string range $DECODE_BUFFER 0 ${packet_length}+1]
 
-  if {"-while" in $args} {
+  if {"-validate" in $args} {
     # shimmer shimmer
-    set while [dict get $args -while]
+    set validate [dict get $args -validate]
   }
 
   set result [dict create]
 
   while {$DECODE_BUFFER ne {}} {
-    set field [my next]
-    if {[info exists while]} {
-      if {![{*}$while $field]} {
-        set DECODE_BUFFER {}
-        set result [dict create]
-        break
+    set field [my @read::field]
+    if {[info exists validate]} {
+      # when while is provided we call the given command each iteration
+      # allow it to continue, return, break, etc
+      set code [catch {{*}$validate $field} validate_result]
+      switch -- $code {
+        1 { throw error $validate_result }
+        2 {
+          if {[string is false -strict $validate_result]} {
+            # when returning false, the value will be
+            # cleared and decoding will stop immediately
+            set DECODE_BUFFER {}
+            set result [dict create]
+            break
+          }
+        }
+        3 { break }
+        4 { continue }
       }
     }
     dict set result [dict get $field name] [dict get $field value]
@@ -201,7 +196,30 @@ if 0 {
   return $result
 }
 
-::oo::define ::bpacket::classes::io method next {} {
+# encode the next field
+::oo::define ::bpacket::classes::io method @write::field {field_id field value} {
+  set type [dict get $field type]
+  # Encoding a field is handled by the type mixins which have been included.
+  # Each field is formatted starting with its field number followed by its
+  # encoded value.
+  #
+  # the decoder will then be able to read the field number and compare it
+  # with its template to determine how to properly decode the packet.
+
+  # We deviate from protocol buffers here to allow any wire_type here.  Since
+  # we are accepting values above 12(?)+- we can not follow their protocol
+  # directly.
+  append encoded \
+    [my @encode::varint $field_id] \
+    [my @encode::$type $value $field]
+}
+
+# decode the next field.
+::oo::define ::bpacket::classes::io method @read::field {} {
+  if {$DECODE_BUFFER eq {}} {
+    # TODO: should probably throw an error here.
+    return
+  }
   set field_id [my @decode::varint]
   if {![dict exists $TEMPLATE fields $field_id]} {
     return \
