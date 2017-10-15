@@ -15,7 +15,6 @@ if 0 {
     the only variables present will be the ones provided
     above.
 }
-
 proc name {{format {$name}} {fail ?unknown?}} {
   set f1 [info frame [expr { [info level] - 0 }]]
   set f2 [info frame [expr { [info level] - 1 }]]

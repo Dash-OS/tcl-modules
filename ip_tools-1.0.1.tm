@@ -13,5 +13,5 @@ proc ::ip::hex2dec {hex {reverse 1}} {
   if { $reverse } { set ip [lreverse $ip] }
   set ip [join $ip .]
   set ip [regexp -inline -all {\d+\.\d+\.\d+\.\d+} $ip]
-  return [string cat "$ip"]
+  return $ip
 }

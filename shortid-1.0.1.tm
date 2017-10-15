@@ -1,4 +1,9 @@
-namespace eval ::shortid { variable i 0; variable n 1 }
+# attempts to provide a "uuid" which is shorter than the standard uuid would
+# be.  This obviously means you can not 100% rely on the value being unique.
+namespace eval ::shortid {
+  variable i 0
+  variable n 1
+}
 
 proc ::shortid::rand {min max} {
   expr { int(rand() * ($max - $min + 1) + $min)}
