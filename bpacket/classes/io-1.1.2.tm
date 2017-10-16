@@ -182,6 +182,7 @@ if 0 {
       # when while is provided we call the given command each iteration
       # allow it to continue, return, break, etc
       set code [catch {{*}$validate $field} validate_result]
+      puts "code: $code"
       switch -- $code {
         1 { throw error $validate_result }
         2 {

@@ -1,4 +1,3 @@
-
 package require bpacket
 
 set template {
@@ -21,16 +20,57 @@ set data [dict create \
   flags2 [dict create one true two false three false]
 ]
 
-puts [string length $data]
+if {[info command ::io] ne {}} {
+  ::io destroy
+}
 
-bpacket create io ::io $template
+bpacket create io ::io $::template
 
-set encoded [io encode $data]
+# id some_id_value values {one two three} data {one ONE two TWO three THREE}
+# nums {100 90 80 70 60 50 40 30 20 10 0} nums2 {one 1 two 2 three 3}
+# flags {1 0 0} flags2 {one 1 two 0 three 0}
+# -------------------------------------------
+# Data Length:  207
+# zlib Deflate: 133
+# Encoded:      80
+#
+# Decoded Data:
+# id some_id_value values {one two three} data {one ONE two TWO three THREE} nums {100 90 80 70 60 50 40 30 20 10 0} nums2 {one 1 two 2 three 3} flags {1 0 0} flags2 {one 1 two 0 three 0}
+#
+# Start Benchmark:
+# encode: 72.915 microseconds per iteration
+# decode: 170.982 microseconds per iteration
+# -------------------------------------------
+proc benchio {} {
+  set ::encoded [io encode $::data]
+  set ::decoded [io decode $::encoded]
 
-puts [string length $encoded]
+  puts "-------------------------------------------
+Data Length:  [string length $::data]
+zlib Deflate: [string length [zlib deflate $::data]]
+Encoded:      [string length $::encoded]
 
-set decoded [io decode $data]
+Decoded Data:
+$::decoded
+  "
+  puts "Start Benchmark:"
+  puts "encode: [time {io encode $::data} 1000]"
+  puts "decode: [time {io decode $::encoded} 1000]"
+  puts "-------------------------------------------"
+}
 
-puts [string length $decoded]
+benchio
 
-puts $data
+proc validateio {} {
+  package require call
+  set decoded [io decode $::encoded \
+    -validate [-> field {
+      switch -- [dict get $field id] {
+        6 {
+          break
+        }
+      }
+    }]
+  ]
+  puts "Decoded: $decoded"
+}

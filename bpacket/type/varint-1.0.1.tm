@@ -36,8 +36,8 @@ proc ::bpacket::decode::varint data {
   # our cursor indicates the location where the data
   # begins and the varint completes, including the removal
   # of any WRAPPER values.
-  # set cursor 0
-  # set wrapper_length [string length $::bpacket::HEADER]
+  set cursor 0
+  set wrapper_length [string length $::bpacket::HEADER]
   while {[string match ${::bpacket::HEADER}* $data]} {
     # we need to count how many times we shift so we can
     # return the index for the start of the data from our

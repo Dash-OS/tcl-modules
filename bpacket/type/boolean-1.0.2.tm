@@ -14,7 +14,7 @@ if {[info command ::bpacket::type::$::bpacket::type::current] eq {}} {
 }
 
 ::oo::define ::bpacket::type::$::bpacket::type::current \
-  method @encode::$::bpacket::type::current {value field args} {
+  method @encode::$::bpacket::type::current {value args} {
     if {[string is boolean -strict $value]} {
       return [binary format c [expr {bool($value)}]]
     } else {

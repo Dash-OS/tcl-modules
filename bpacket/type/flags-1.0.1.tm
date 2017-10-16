@@ -1,10 +1,10 @@
 if 0 {
   @ bpacket type | flags
-    A list of varints prefixed by the list length.
+    A list of booleans prefixed by length.
 }
-variable ::bpacket::type::current numlist
+variable ::bpacket::type::current flags
 
-bpacket register $::bpacket::type::current 9
+bpacket register $::bpacket::type::current 8
 
 if {[info command ::bpacket::type::$::bpacket::type::current] eq {}} {
   ::oo::class create ::bpacket::type::$::bpacket::type::current {}
@@ -12,7 +12,7 @@ if {[info command ::bpacket::type::$::bpacket::type::current] eq {}} {
 
 ::oo::define ::bpacket::type::$::bpacket::type::current \
   method @init::$::bpacket::type::current {} {
-    my requires varint
+    my requires varint boolean
   }
 
 ::oo::define ::bpacket::type::$::bpacket::type::current \
@@ -20,32 +20,29 @@ if {[info command ::bpacket::type::$::bpacket::type::current] eq {}} {
     set values [list]
 
     if {[dict exists $field args]} {
+      # when args are defined, each flag has a key
       set keys [dict get $field args]
       foreach key $keys {
-        if {[dict exists $value key]} {
-          lappend values [dict get $value key]
+        if {[dict exists $value $key]} {
+          lappend values [dict get $value $key]
         } else {
           # we keep going until a key is not present - the rest are ignored
+          # this will likely throw an error in the future.
           break
         }
       }
     } else {
+      # when no args are provided, each value should be a boolean
       set values $value
     }
 
-    append response [my @encode::varint [llength $values]]
+    append encoded [my @encode::varint [llength $values]]
 
-    foreach num $values {
-      if {![string is entier -strict $num]} {
-        tailcall return \
-          -code error \
-          -errorCode [list BINARY_PACKET ENCODE NUM_LIST NOT_A_NUMBER $num] \
-          " bpacket expected an entier value but got $num for field $field"
-      }
-      append response [my @encode::varint $num]
+    foreach flag $values {
+      append encoded [my @encode::boolean $flag]
     }
 
-    return $response
+    return $encoded
   }
 
 ::oo::define ::bpacket::type::$::bpacket::type::current \
@@ -54,21 +51,21 @@ if {[info command ::bpacket::type::$::bpacket::type::current] eq {}} {
 
     if {[dict exists $field args]} {
       set keys   [dict get $field args]
-      set result [dict create]
+      set decoded [dict create]
     } else {
-      set result [list]
+      set decoded [list]
     }
 
     while {$length > 0} {
-      set num [my @decode::varint]
+      set flag [my @decode::boolean]
       if {[info exists keys]} {
         set keys [lassign $keys key]
-        dict set result $key $num
+        dict set decoded $key $flag
       } else {
-        lappend result $num
+        lappend decoded $flag
       }
       incr length -1
     }
 
-    return $result
+    return $decoded
   }

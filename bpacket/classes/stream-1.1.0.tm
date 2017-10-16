@@ -3,30 +3,24 @@ if {[info command ::bpacket::classes::stream] eq {}} {
 }
 
 ::oo::define ::bpacket::classes::stream {
-  variable STATUS BUFFER PACKETS CHAN CALLBACK
-  # when building a chunked packet we will populate these values indicating
-  # what we are expecting in terms of packet length.
-  #
-  # NEXT_SIZE  = expected [string length] of packet (not including wrapper)
-  # NEXT_START = index of where our packet starts relative to BUFFER index 0
-  variable NEXT_SIZE NEXT_START
+  variable STATUS PACKETS CHAN CALLBACK
+  # $bufferID [dict create buffer $buffer size $size start $start]
+  variable BUFFER
   # store timeouts / afterids to cancel when needed
   variable TIMEOUTS
 }
 
 ::oo::define ::bpacket::classes::stream constructor args {
   set TIMEOUTS   [dict create]
-  set PACKETS    [list]
+  set PACKETS    [dict create]
   set STATUS     NEW
-  set NEXT_SIZE  -1
-  set NEXT_START -1
   if {[llength $args]} {
     foreach {arg value} $args {
       set [string toupper $arg] $value
     }
   }
   if {![info exists BUFFER]} {
-    set BUFFER {}
+    set BUFFER [dict create]
   }
   if {![info exists CALLBACK]} {
     set CALLBACK {}
@@ -45,7 +39,7 @@ if {[info command ::bpacket::classes::stream] eq {}} {
   }
   # safety check
   if {$CHAN ne {} && $CHAN in [chan names]} {
-    catch { chan close $CHAN }
+    chan close $CHAN
   }
 }
 
@@ -68,7 +62,9 @@ if {[info command ::bpacket::classes::stream] eq {}} {
 
 ::oo::define ::bpacket::classes::stream method event callback {
   set CALLBACK $callback
-  dict set TIMEOUTS dispatch [after 0 [namespace code [list my Dispatch]]]
+  if {[llength $PACKETS]} {
+    dict set TIMEOUTS dispatch [after 0 [namespace code [list my Dispatch]]]
+  }
 }
 
 ::oo::define ::bpacket::classes::stream method prop prop {
@@ -77,49 +73,72 @@ if {[info command ::bpacket::classes::stream] eq {}} {
 
 # When append is called, we will add more data to the buffer
 # and attempt to build a fully formed packet.
-::oo::define ::bpacket::classes::stream method append data {
-  set initial [expr {[string length $BUFFER] == 0}]
+::oo::define ::bpacket::classes::stream method append {data {bufferID default}} {
+  if {![dict exists $BUFFER $bufferID buffer]} {
+    set initial true
+    set buffer {}
+  } else {
+    set initial false
+    set buffer [dict get $BUFFER $bufferID buffer]
+  }
+
   if {$initial} {
     # this is the initial data and we can begin parsing
     # for complete bpackets.
-    if {![::bpacket::wrapstart $data]} {
+    if {![bpacket wrapstart $data]} {
       # bpacket is wrapped with $::bpacket::HEADER, check for the
       # value within the data and ignore anything else that may
       # precede it.  if a header can not be found then we will
       # end up appending nothing to the buffer value.
-      append BUFFER [::bpacket::headerstart $data]
+      append buffer [bpacket headerstart $data]
     } else {
       # if we are at the start of a packet, add it!
-      append BUFFER $data
+      append buffer $data
     }
   } else {
     # if this is not the first append of data then we
     # are waiting on additional data to complete our
     # bpacket.
-    append BUFFER $data
+    append buffer $data
   }
+
+  if {[string length $buffer] == 0} {
+    return
+  }
+
+  dict set BUFFER $bufferID buffer $buffer
   # at this point, if our buffer has any data in it, we will attempt
   # to parse the buffer into packets which can be dispatched
   #
   # by doing this asynchronously we also allow more data to come in
   # if needed before flushing the data
-  if {![dict exists $TIMEOUTS flush]} {
-    dict set TIMEOUTS flush [after 0 [namespace code [list my flush]]]
+  if {![dict exists $TIMEOUTS flush_$bufferID]} {
+    dict set TIMEOUTS flush_$bufferID [after 0 [namespace code [list my flush $bufferID]]]
   }
 }
 
 # flush the buffer by attempting to read the current buffer and attempt
 # to capture a complete packet
-::oo::define ::bpacket::classes::stream method flush {} {
-  if {[dict exists $TIMEOUTS flush]} {
-    after cancel [dict get $TIMEOUTS flush]
-    dict unset TIMEOUTS flush
+::oo::define ::bpacket::classes::stream method flush {{bufferID default}} {
+  if {[dict exists $TIMEOUTS flush_$bufferID]} {
+    after cancel [dict get $TIMEOUTS flush_$bufferID]
+    dict unset TIMEOUTS flush_$bufferID
   }
-  if {$BUFFER ne {}} {
+
+  if {![dict exists $BUFFER $bufferID buffer]} {
+    # nothing to flush?
+    return
+  }
+
+  set buffer [dict get $BUFFER $bufferID buffer]
+
+  if {$buffer ne {}} {
     # here we want to verify that our BUFFER starts with our
-    # wrapper value.  if something gets messed up in some way
-    set BUFFER [bpacket headerstart $BUFFER]
-    while {$BUFFER ne {} && [bpacket wrapstart $BUFFER]} {
+    # wrapper value.  this will return an empty string or a string
+    # where the first character starts with our header indicating the
+    # start of a new packet.
+    set buffer [bpacket headerstart $buffer]
+    while {$buffer ne {} && [bpacket wrapstart $buffer]} {
       # the start of the buffer is already validated at this point.
       # check if the length has been parsed from the buffer yet, if
       # not then we check it.
@@ -133,26 +152,32 @@ if {[info command ::bpacket::classes::stream] eq {}} {
       # a complete packet will encounter either another $WRAPPER value
       # or it will be the EOF / end of the buffer value.  If we do not
       # match up the packet is malformed.
-      if {$NEXT_SIZE == -1} {
-        lassign [bpacket decode varint $BUFFER] NEXT_SIZE NEXT_START
+      if {![dict exists $BUFFER $bufferID size] || ![dict exists $BUFFER $bufferID start]} {
+        lassign [bpacket decode varint $buffer] size start
+        dict set BUFFER $bufferID size  $size
+        dict set BUFFER $bufferID start $start
+      } else {
+        set size  [dict get $BUFFER $bufferID size]
+        set start [dict get $BUFFER $bufferID start]
       }
 
       set eof_length [string length $::bpacket::EOF]
 
-      set packet_length [expr {[string length $BUFFER] - $NEXT_START - $eof_length}]
+      set packet_length [expr {[string length $buffer] - $start - $eof_length}]
 
       # puts "$packet_length vs expected $NEXT_SIZE"
 
-      if {$packet_length == $NEXT_SIZE && [string match "*${::bpacket::EOF}" $BUFFER]} {
+      if {$packet_length == $size && [string match "*${::bpacket::EOF}" $buffer]} {
         # This is the best case scenario, in this case
         # we can be almost certain our $BUFFER consistutes
         # one single bpacket.
         #
         # We validate the data by confirming a NULL is discovered
         # terminating the packet
-        lappend PACKETS $BUFFER
-        set BUFFER {}
-      } elseif {$packet_length > $NEXT_SIZE} {
+        dict lappend PACKETS $bufferID $buffer
+        dict unset BUFFER $bufferID
+        set buffer {}
+      } elseif {$packet_length > $size} {
         # We have received more data with this addition
         # than the packet length should be.  Here we need
         # to be careful and make sure that we only
@@ -167,13 +192,13 @@ if {[info command ::bpacket::classes::stream] eq {}} {
         #
         # Should we grab a packet and not find our wrapper on the next
         # bytes, we need
-        set packet [string range $BUFFER 0 [expr {$NEXT_START + $NEXT_SIZE + $eof_length - 1}]]
-        set BUFFER [string range $BUFFER [expr {$NEXT_START + $NEXT_SIZE + $eof_length}] end]
+        set packet [string range $buffer 0 [expr {$start + $size + $eof_length - 1}]]
+        set buffer [string range $buffer [expr {$start + $size + $eof_length}] end]
 
         # $packet should now begin with our wrapper and end with a NULL.
-        if {[string match "*${::bpacket::EOF}" $BUFFER]} {
+        if {[string match "*${::bpacket::EOF}" $buffer]} {
           # Our packet has been verified!
-          lappend PACKETS $packet
+          dict lappend PACKETS $bufferID $packet
         } else {
           # Should we not find a NULL character at the end of $packet
           # then we must assume that packets were received out of order
@@ -194,8 +219,8 @@ if {[info command ::bpacket::classes::stream] eq {}} {
           #       we should be able to build models that can attempt to "assemble"
           #       the blocks that we have received and make them fit to create a
           #       proper bpacket format.
-          set BUFFER [bpacket headerstart \
-            [string trimleft $packet$BUFFER $::bpacket::HEADER]
+          set buffer [bpacket headerstart \
+            [string trimleft $packet$buffer $::bpacket::HEADER]
           ]
         }
       } else {
@@ -203,10 +228,18 @@ if {[info command ::bpacket::classes::stream] eq {}} {
         # we simply have to wait for more data to be appended.
         break
       }
+
       # if we are continuing to the next loop
       # we must reset our size and start values.
-      set NEXT_SIZE  -1
-      set NEXT_START -1
+      if {$buffer eq {}} {
+        dict unset BUFFER $bufferID
+      } else {
+        # set the current buffer and remove size and start so they
+        # can be reset.
+        dict set BUFFER $bufferID [dict create \
+          buffer $buffer
+        ]
+      }
     }
     # Now that we have finished parsing our received binary data,
     # we check if we have any packets within our PACKETS list and
@@ -215,10 +248,12 @@ if {[info command ::bpacket::classes::stream] eq {}} {
   }
 }
 
-::oo::define ::bpacket::classes::stream method reset {} {
-  set BUFFER     {}
-  set NEXT_SIZE  -1
-  set NEXT_START -1
+::oo::define ::bpacket::classes::stream method reset {{bufferID {}}} {
+  if {$bufferID ne {}} {
+    dict unset BUFFER $bufferID
+  } else {
+    set BUFFER [dict create]
+  }
 }
 
 ::oo::define ::bpacket::classes::stream method Dispatch {} {
@@ -227,16 +262,21 @@ if {[info command ::bpacket::classes::stream] eq {}} {
     after cancel [dict get $TIMEOUTS dispatch]
     dict unset TIMEOUTS dispatch
   }
-  while {[llength $PACKETS]} {
-    try {
-      set PACKETS [lassign $PACKETS packet]
-      {*}$CALLBACK $packet
-    } on error {result options} {
-      # When we do encounter a malformed packet, we will handle
-      # the error before passing it to the user?
-      # Until we know how to handle this, we will rethrow it
-      # TODO: ?
-      throw error $result
+  if {[dict size $PACKETS]} {
+    dict for {bufferID packets} $PACKETS {
+      while {[llength $packets]} {
+        try {
+          set packets [lassign $packets packet]
+          {*}$CALLBACK $packet $bufferID
+        } on error {result options} {
+          # When we do encounter a malformed packet, we will handle
+          # the error before passing it to the user?
+          # Until we know how to handle this, we will rethrow it
+          # TODO: ?
+          throw error $result
+        }
+      }
+      dict unset PACKETS $bufferID
     }
   }
 }
@@ -271,7 +311,7 @@ if {[info command ::bpacket::classes::stream] eq {}} {
           my Status CLOSED
         }
         # Adds data to the buffer
-        my append [chan read $CHAN]
+        my append [chan read $CHAN] $CHAN
       }
     }
   }

@@ -137,7 +137,7 @@ if 0 {
 }
 proc ::bpacket::headerstart data {
   set length [string length $::bpacket::HEADER]
-  set idx    [string first $::bpacket::HEADER $data]
+  set idx    [string first  $::bpacket::HEADER $data]
   if {$idx == -1} {
     # we could not find the wrapper in the given string
     return
