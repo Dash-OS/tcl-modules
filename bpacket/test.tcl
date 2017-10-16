@@ -1,5 +1,13 @@
 package require bpacket
 
+# below we see various forms of each type
+# which expect a different method of providing
+# the values to the encoder.
+
+# when flags or numlist has no arguments then
+# it is a dynamic list of booleans or numbers whereas
+# when arguments are provided, those values must be
+# within a dict with the given keys (all are required currently)
 set template {
   1 string id
   2 list   values
@@ -20,6 +28,7 @@ set data [dict create \
   flags2 [dict create one true two false three false]
 ]
 
+# used to differentiate chunking when we test the fragmented stream
 set data2 [dict create \
   id "another_id" \
   values [list one two three] \
@@ -36,6 +45,7 @@ if {[info command ::io] ne {}} {
 
 bpacket create io ::io $::template
 
+set encoded  [io encode $data]
 set encoded2 [io encode $data2]
 
 # id some_id_value values {one two three} data {one ONE two TWO three THREE}
@@ -50,25 +60,27 @@ set encoded2 [io encode $data2]
 # id some_id_value values {one two three} data {one ONE two TWO three THREE} nums {100 90 80 70 60 50 40 30 20 10 0} nums2 {one 1 two 2 three 3} flags {1 0 0} flags2 {one 1 two 0 three 0}
 #
 # Start Benchmark:
-# encode: 72.915 microseconds per iteration
-# decode: 170.982 microseconds per iteration
+#
+# encode: 69.461 microseconds per iteration
+# decode: 104.08 microseconds per iteration
 # -------------------------------------------
 proc benchio {} {
-  set ::encoded [io encode $::data]
   set ::decoded [io decode $::encoded]
-
-  puts "-------------------------------------------
+  puts "
+-------------------------------------------
 Data Length:  [string length $::data]
 zlib Deflate: [string length [zlib deflate $::data]]
 Encoded:      [string length $::encoded]
 
 Decoded Data:
 $::decoded
+
+Start Benchmark:
+
+encode: [time {io encode $::data} 1000]
+decode: [time {io decode $::encoded} 1000]
+-------------------------------------------
   "
-  puts "Start Benchmark:"
-  puts "encode: [time {io encode $::data} 1000]"
-  puts "decode: [time {io decode $::encoded} 1000]"
-  puts "-------------------------------------------"
 }
 
 benchio
@@ -154,7 +166,6 @@ proc simplestream {} {
 
 proc chunkedstream {} {
   puts "\n -- CHUNKED STREAM TEST -- \n"
-
   # append the encoded message in two chunks
   stream append [string range $::encoded 0 15] CHUNKED
   update
@@ -191,8 +202,6 @@ proc fragmentedstream {} {
 
 proc onPacket {packet chanID} {
   puts "Received Complete Packet for chan: $chanID"
-
   set decoded [io decode $packet]
-
   puts "Decoded: $decoded"
 }
