@@ -161,11 +161,14 @@ if 0 {
         " attempted to decode a bpacket which does not have a valid footer"
     }
 
-    set DECODE_BUFFER [string range $packet [string length $::bpacket::HEADER] end-[string length $::bpacket::EOF]]
+    set DECODE_BUFFER [string range $packet \
+      [string length $::bpacket::HEADER] \
+      end-[string length $::bpacket::EOF]
+    ]
 
     set packet_length [my @decode::varint]
 
-    set DECODE_BUFFER [string range $DECODE_BUFFER 0 ${packet_length}+1]
+    set DECODE_BUFFER [string range $DECODE_BUFFER 0 [expr { $packet_length + 1 }]]
   } else {
     set DECODE_BUFFER $packet
   }
@@ -182,8 +185,15 @@ if 0 {
       # when while is provided we call the given command each iteration
       # allow it to continue, return, break, etc
       set code [catch {{*}$validate $field} validate_result]
-      puts "code: $code"
       switch -- $code {
+        0 {
+          if {[string is false -strict $validate_result]} {
+            # stop decoding
+            set result [dict create]
+            set DECODE_BUFFER {}
+            break
+          }
+        }
         1 { throw error $validate_result }
         2 {
           if {[string is false -strict $validate_result]} {

@@ -127,27 +127,34 @@ proc ::bpacket::wrapstart data {
 
 if 0 {
   @ bpacket headerstart | $data
-    searches the value for $::bpacket::HEADER and returns the index
-    when this is called we are looking for the "start" wrapper and
-    are trashing everything else that may precede it since we don't
-    have the bytes required to complete the previous packet.
+    searches the value for $::bpacket::HEADER and returns the data
+    starting with the header value and forward, removing anything that
+    may be preceeding it.
 
     returns either an empty string or the packet with preceeding junk
     removed, signaling the start of a bpacket (but not necessarily a complete).
 }
 proc ::bpacket::headerstart data {
-  set length [string length $::bpacket::HEADER]
-  set idx    [string first  $::bpacket::HEADER $data]
+  set idx [string first $::bpacket::HEADER $data]
+  # puts "bpacket header start: $idx"
   if {$idx == -1} {
     # we could not find the wrapper in the given string
     return
   }
   if {$idx != 0} {
-    set buf [string range $data $idx end]
+    return [string range $data $idx end]
   } else {
-    set buf $data
+    return $data
   }
-  return $buf
+}
+
+proc ::bpacket::trimheader data {
+  return [string trimleft $data $::bpacket::HEADER]
+}
+
+proc ::bpacket::nextheader data {
+  # ignore a current header and move to the next one, if possible
+  return [::bpacket headerstart [::bpacket trimheader $data]]
 }
 
 
