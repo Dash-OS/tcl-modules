@@ -24,15 +24,12 @@ proc ::net::ueinit {} {
   }
   ::set ::net::encode_map $e
   ::set ::net::decode_map $d
-  ::rename ::net::init {}
+  # done with chu!
+  ::rename ::net::ueinit {}
 }
 
-proc ::net::urlencode s {
-  ::tailcall ::string map $::net::encode_map $s
-}
+proc ::net::urlencode s { ::string map $::net::encode_map $s }
 
-proc ::net::urldecode s {
-  ::tailcall ::string map $::net::decode_map $s
-}
+proc ::net::urldecode s { ::string map $::net::decode_map $s }
 
 ::net::ueinit
