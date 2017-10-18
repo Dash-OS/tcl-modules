@@ -119,7 +119,7 @@ module create ::state::middleware::sync {
 # all middlewares have had a chance to run their onRegister method.
 #::oo::define ::state::middleware::sync method onRegister { schema stateConfig } {}
 ::oo::define ::state::middleware::sync method onSnapshot { snapshot } {
-  ~! "Snapshot" "State Snapshot" -context $snapshot
+  # ~! "Snapshot" "State Snapshot" -context $snapshot
 	set keyValue [dict get $snapshot keyValue]
 	if { [dict exists $CONFIG batch] && [string is false -strict [dict get $CONFIG batch]] } {
 		set resolve_id $keyValue
