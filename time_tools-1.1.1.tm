@@ -309,13 +309,17 @@ proc ::Time::Now {{ timezone {} } { i {} }} {
   } finally { return $tempDict }
 }
 
-proc timestamp { {timestamp {}} } {
+proc timestamp { {timestamp {}} {timezone {}} } {
 
   if { $timestamp eq {} } {
     set timestamp [clock seconds]
   } elseif { [string length $timestamp] >= [clock milliseconds] } {
     # If we receive milliseconds, we want to change it to seconds
     set timestamp [expr { round( $timestamp / 1000 ) }]
+  }
+
+  if {$timezone eq {}} {
+    set timezone [::Time::Teimzone]
   }
 
   return [clock format $timestamp \
