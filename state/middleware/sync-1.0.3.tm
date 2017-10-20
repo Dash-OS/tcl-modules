@@ -36,7 +36,6 @@ module create ::state::middleware::sync {
 	::variable config {}
 
 	constructor { container stateConfig middlewareConfig } {
-
 	  set CONTAINER $container
 	  set NAME      [namespace tail $container]
 	  set config    [prop config]
@@ -46,7 +45,9 @@ module create ::state::middleware::sync {
 
 	  if { [dict exists $stateConfig sync] } {
 	    set CONFIG [dict get $stateConfig sync]
-	  } else { set CONFIG [dict create] }
+	  } else {
+      set CONFIG [dict create]
+    }
 
 	  if { ! [dict exists $CONFIG async] } {
 	  	# Default async to true if it doesnt exist as a property for sync
@@ -54,7 +55,9 @@ module create ::state::middleware::sync {
 	      dict set CONFIG async [dict get $stateConfig async]
 	    } elseif { [dict exists $config async] } {
 	    	dict set CONFIG async [dict get $config async]
-			} else { dict set CONFIG async 1 }
+			} else {
+        dict set CONFIG async 1
+      }
 	  }
 
 	  if { [string is true [dict get $CONFIG async]] } {
@@ -66,7 +69,9 @@ module create ::state::middleware::sync {
 		  		dict set CONFIG delay [dict get $stateConfig delay]
 		  	} elseif { [dict exists $config delay] } {
 		  		dict set CONFIG delay [dict get $config delay]
-		    } else { dict set CONFIG delay 1000 }
+		    } else {
+          dict set CONFIG delay 1000
+        }
 		  }
 	  } elseif { [dict exists $CONFIG delay] } {
 			# no reason for this

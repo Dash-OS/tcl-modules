@@ -1,14 +1,13 @@
 
 namespace eval ::oo::metaclass {
-  
+
   variable i 0
-  
+
   variable Build_Prefix_Meta {
     superclass ::oo::metaclass
   }
-  
-}
 
+}
 
 proc ::oo::metaclass::construct {} { uplevel 1 {
   namespace unknown [list ::oo::metaclass::unknown [info object class [self]]]
@@ -48,14 +47,14 @@ proc ::oo::metaclass::define { metaclass what args } {
 }
 
 ::oo::class create ::oo::metaclass {
-  
+
   superclass ::oo::class
-  
+
   # Creation of a new metaclass
   self method create {name definition args} {
     tailcall my createWithNamespace $name ${name} $definition {*}$args
   }
-  
+
   constructor {{script {}}} {
     # We temporarily override [variable] so that we can define the class
     # variables.  We then remove it later so that class procs can still
@@ -82,18 +81,17 @@ proc ::oo::metaclass::define { metaclass what args } {
     }
     rename variable {}
   }
-  
-  self method namespace {} { namespace current }
-  
-}
 
+  self method namespace {} { namespace current }
+
+}
 
 ::oo::define ::oo::metaclass method constructor {argnames body args} {
   tailcall ::oo::define [self] constructor $argnames [format {
     %s ; %s } ::oo::metaclass::construct $body
   ]
 }
-  
+
 ::oo::define ::oo::metaclass method namespace {} { namespace current }
 
 ::oo::define ::oo::metaclass method scope ns {
@@ -101,13 +99,12 @@ proc ::oo::metaclass::define { metaclass what args } {
   namespace eval $ns {}
 }
 
-
 ::oo::define ::oo::metaclass method create {name args} {
   ::variable scope
   if { [info object class [self]] eq "::oo::metaclass" } {
     if { [info exists scope] } {
       set path ${scope}::$name
-    } else { 
+    } else {
       set path [uplevel 1 {namespace current}]::$name }
     if { [info commands ${path}::my] ne {} } {
       set path ${path}[incr ::oo::metaclass::i]
@@ -116,7 +113,7 @@ proc ::oo::metaclass::define { metaclass what args } {
   } else {
     set id [namespace tail $name]
     if { [info exists scope] } {
-      set path ${scope}::$id 
+      set path ${scope}::$id
     } else { set path [namespace current]::$id }
     if { [info commands ${path}::my] ne {} } {
       set path ${path}[incr ::oo::metaclass::i]

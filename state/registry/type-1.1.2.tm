@@ -2,7 +2,7 @@ namespace eval ::state {}
 namespace eval ::state::register {}
 namespace eval ::state::register::registry {}
 
-variable ::state::register::registry::types [dict create]
+variable ::state::register::registry::types     [dict create]
 variable ::state::register::registry::type_keys [list]
 
 package require state::mixins::type_mixin

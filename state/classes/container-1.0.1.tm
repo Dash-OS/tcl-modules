@@ -1,5 +1,6 @@
 ::oo::define ::state::Container {
-  variable KEY READY ENTRIES REQUIRED CONFIG SCHEMA SUBSCRIBED MIDDLEWARES ITEMS SINGLETON SHARED
+  variable KEY READY ENTRIES REQUIRED CONFIG SCHEMA
+  variable SUBSCRIBED MIDDLEWARES ITEMS SINGLETON SHARED
 }
 
 ::oo::metaclass::define ::state::Container constructor schema {
@@ -10,17 +11,29 @@
 
   if { [dict exists $schema config] } {
     set CONFIG [dict get $schema config]
-
     dict unset schema config
-  } else { set CONFIG [dict create] }
+  } else {
+    set CONFIG [dict create]
+  }
+
   if { [dict exists $CONFIG shared] } {
     set SHARED [dict get $CONFIG shared]
-  } else { set SHARED 0 }
-  set ENTRIES [list]
-  set SCHEMA  $schema
+  } else {
+    set SHARED 0
+  }
+
+  set ENTRIES     [list]
+  set SCHEMA      $schema
   set MIDDLEWARES [dict create]
-  set SUBSCRIBED 1
-  if { $KEY eq {} } { set KEY "@@S" ; set SINGLETON 1 } else { set SINGLETON 0 }
+  set SUBSCRIBED  1
+
+  if { $KEY eq {} } {
+    set KEY "@@S"
+    set SINGLETON 1
+  } else {
+    set SINGLETON 0
+  }
+
   my CreateItems
   if { [dict exists $SCHEMA default] && $KEY eq "@@S" } {
     # Default is only available for singleton state and it is
@@ -32,7 +45,7 @@
 }
 
 ::oo::define ::state::Container destructor {
-  puts "[self] is being destroyed!"
+  # puts "[self] is being destroyed!"
   my middleware_event onDestroy
 }
 

@@ -1,3 +1,5 @@
+if 0 { @ COMPLETELY UNFINISHED! @ }
+
 package require ensembled
 package require alias
 package require typeof
@@ -7,17 +9,13 @@ namespace eval ::modules::module {}
 
 if 0 {
   @ modules @
-
   > import
     | Used to import a module into a scoped script.
 }
-
 proc ::import args {
   set request [dict create]
   set types [typeof $args -deep]
-
   ::modules::parse_list $args request [lindex $types 1]
-  puts "imports $request"
 }
 
 proc ::export args {
@@ -49,7 +47,6 @@ if 0 {
 
 #import [list foo] from const
 #import foo from const
-
 proc ::modules::parse_list {l rname types {nested false}} {
   upvar 1 $rname request
   set i 0

@@ -65,14 +65,18 @@
 	set ref [state ref $localID]
 	set key [state key $localID $ref]
 	if { [state prop $localID singleton $ref] } {
-		if { $entryID ne {} } { set args [concat $entryID $args] }
+		if { $entryID ne {} } {
+      set args [concat $entryID $args]
+    }
 		set entryID "SINGLETON"
 	} else {
 		dict set updateDict $key $entryID
 	}
 	foreach arg $args {
 		lassign $arg var as default
-		if { $as eq {} } { set as $var }
+		if { $as eq {} } {
+      set as $var
+    }
 		upvar 1 $as val
 		if { ! [info exists val] || $val eq {} } {
 			set val $default
@@ -89,13 +93,17 @@
 
 ::oo::define ::state::API method pull {localID {entryID {}} args} {
 	set ref [my ref $localID]
+
 	if {[$ref prop key] eq "@@S"} {
 		if {$entryID ne {} && $entryID ne "@@S"} {
 			set args [concat [list $entryID] $args]
 		}
 		set singleton 1
 		set entryID {}
-	} else { set singleton 0 }
+	} else {
+    set singleton 0
+  }
+
 	if { ! $singleton } {
 		set response [$ref get VALUES $entryID]
 		dict pull response [list $entryID tempDict]
@@ -103,15 +111,21 @@
 		set response [$ref get VALUES $args]
 		set tempDict $response
 	}
-	if {$args eq {}} { set updateDict $tempDict } else {
+
+	if {$args eq {}} {
+    set updateDict $tempDict
+  } else {
 		foreach arg $args {
 			lassign $arg var as default
-			if {$as eq {}} { set as $var }
+			if {$as eq {}} {
+        set as $var
+      }
 			upvar 1 $as val
 			set val [dict get? $tempDict $var]
 			dict set updateDict $as $val
 		}
 	}
+
 	return $updateDict
 }
 

@@ -50,7 +50,9 @@ module create ::state::middleware::sqlite_persist {
 	    set ASYNC [dict get $stateConfig persistAsync]
 	  } elseif { [dict exists $config async] } {
 	    set ASYNC [dict get $config async]
-	  } else { set ASYNC 1 }
+	  } else {
+      set ASYNC 1
+    }
 
 	  if { $ASYNC } {
 		  # How long should we wait for updates before persisting to
@@ -60,7 +62,9 @@ module create ::state::middleware::sqlite_persist {
 		  	set DELAY [dict get $stateConfig persistDelay]
 		  } elseif { [dict exists $config delay] } {
 				set DELAY [dict get $config delay]
-		  } else { set DELAY 0 }
+		  } else {
+        set DELAY 0
+      }
 		  set QUEUE [dict create]
 	  }
 
@@ -85,7 +89,9 @@ module create ::state::middleware::sqlite_persist {
 	method onRegister { schema stateConfig } {
 	  if { [dict exists $stateConfig persistPath] } {
 	  	set path [dict get $stateConfig persistPath]
-	  } else { set path {} }
+	  } else {
+      set path {}
+    }
 
 	  set DB [ static createDB $NAME $schema $path ]
 
@@ -152,7 +158,9 @@ PersistMiddleware::static close { name } {
 # 	The command will be returned to the instance so that it can call it easily
 #   as needed.
 PersistMiddleware::static createDB { name schema {path {}} } {
-	if { $path eq {} } { set path [dict get [set [namespace current]::config] path] }
+	if { $path eq {} } {
+    set path [dict get [set [namespace current]::config] path]
+  }
 	set cmd [namespace parent]::db::${name}
 
 	sqlite3 $cmd $path

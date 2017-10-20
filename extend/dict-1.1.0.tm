@@ -1,7 +1,6 @@
 package require extend
 
 extend ::dict {
-
   proc isDict {var} {
     if {[::catch {::dict size ${var}}]} {
       ::return 0

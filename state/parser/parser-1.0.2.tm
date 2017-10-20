@@ -50,15 +50,21 @@ variable ::state::parse::Keys [dict keys $::state::parse::Keywords]
 # where we may have attributes that define more than a
 # key/value pair.
 proc ::state::parse::Format args {
-  if {[llength $args] == 1} { set args [lindex $args 0] }
+  if {[llength $args] == 1} {
+    set args [lindex $args 0]
+  }
   set tempDict [dict create]
   set i 0
   set multi 0
   foreach item $args {
     set item [string trim $item]
-    if { $i == 0 } { set keyword {} }
+    if { $i == 0 } {
+      set keyword {}
+    }
     if {$keyword eq {}} {
-      if {$item ni $::state::parse::Keys} { throw error "$item is not a known keyword" }
+      if {$item ni $::state::parse::Keys} {
+        throw error "$item is not a known keyword"
+      }
       set setKeyword 1
     }
     if {[string is true -strict $multi] && $item in $::state::parse::Keys} {
@@ -122,7 +128,9 @@ proc ::state::parse::Evaluate {localID container {setters {}} {scriptArgs {}}} {
   set parsedDict [dict create localID $localID]
   dict for {attribute data} $container {
     try {
-      if { [llength $data] == 1 } { set data [lindex $data 0] }
+      if { [llength $data] == 1 } {
+        set data [lindex $data 0]
+      }
       parser::$attribute
     } on error {result options} {
       ::onError $result $options "While Parsing $localID attribute $attribute"
