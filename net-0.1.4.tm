@@ -128,10 +128,10 @@ proc ::net::init {} {
       -buffersize  65536 \
       -encoding    ascii \
       -charset     iso-8859-1 \
-      -strict      true \
+      -strict      1 \
       -version     1.1 \
       -urlencoding utf-8 \
-      -keepalive   true \
+      -keepalive   1 \
       -headers     [list]
     ]
 

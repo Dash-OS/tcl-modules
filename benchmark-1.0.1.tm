@@ -3,6 +3,7 @@ package require ensembled
 namespace eval benchmark ensembled
 
 if 0 {
+  @ UNFINISHED BUT WORKING @
   @ benchmark commands | $args
     A simple utility to quickly check the difference between
     different commands.

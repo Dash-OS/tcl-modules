@@ -163,14 +163,14 @@ if 0 {
     Used by each type to register itself
     for use by templates.  The $id must be
     unique and not overlap with any other
-    type unless $false is set to {true}
+    type unless $force is set to {true}
 
   NOTE: Since the id and type needs to be identical
         on both ends of the wire, we cant auto generate
         the id value.  There may be a cleaner way of doing
         this which is more friendly to extensions.
 }
-proc ::bpacket::register {type id {force false}} {
+proc ::bpacket::register {type id {force 0}} {
   if {[dict exists $::bpacket::REGISTRY $type]} {
     if {!$force} {
       return \

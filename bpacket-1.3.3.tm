@@ -48,7 +48,7 @@ if 0 {
       props     [list 0 10] \
       protocols [list a b c] \
       ruid      MY_EVENT \
-      keepalive true \
+      keepalive 1 \
       data [dict create \
         first_name john \
         last_name  smith \

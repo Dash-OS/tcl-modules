@@ -1,40 +1,3 @@
-package require json_tools
-
-# set QUERY {query (
-#   $resolve: String!
-# ) {
-#   onCluster(
-#     resolve: $resolve
-#   ) {
-#     AppStatus {
-#       status
-#       isAuthenticated
-#     }
-#   }
-# }}
-
-# proc handleGraphRequest request {
-#   set data   [json get $request]
-#   set parsed [::graphql::parse $data]
-#   puts $parsed
-#   if {[dict exists $parsed requests]} {
-#     foreach {request params} [dict get $parsed requests] {
-#       puts "Request: $request"
-#       puts $params
-#
-#     }
-#   }
-# }
-
-set PACKET [json typed [dict create \
-  query [dict create \
-    query $QUERY
-  ] \
-  variables [dict create \
-    resolve ""
-  ]
-]]
-
 namespace eval graphql {}
 namespace eval ::graphql::parse {}
 
@@ -187,7 +150,7 @@ proc ::graphql::parse::definitions definitions {
 
     if {[string match "*!" $type]} {
       set type [string trimright $type !]
-      set required true
+      set required 1
       if {![dict exists $parsed variables $var]} {
         tailcall return \
           -code error \
@@ -195,14 +158,14 @@ proc ::graphql::parse::definitions definitions {
           " variable $var is required but it was not provided within the request"
       }
     } else {
-      set required false
+      set required 0
     }
 
     if {[string index $type 0] eq "\["} {
-      set isArray true
+      set isArray 1
       set type [string range $type 1 end-1]
     } else {
-      set isArray false
+      set isArray 0
     }
 
     if {[dict exists $parsed variables $var]} {
@@ -216,17 +179,17 @@ proc ::graphql::parse::definitions definitions {
     switch -- $type {
       float {
         set type double
-        set checkType true
+        set checkType 1
       }
       boolean {
-        set checkType true
+        set checkType 1
       }
       int {
         set type integer
-        set checkType true
+        set checkType 1
       }
       default {
-        set checkType false
+        set checkType 0
       }
     }
 
@@ -343,12 +306,12 @@ proc ::graphql::parse::directive directive {
   switch -nocase -- $type {
     include {
       if {![info exists val] || ![string is true -strict $val]} {
-        return false
+        return 0
       }
     }
     skip {
       if {[info exists val] && [string is true -strict $val]} {
-        return false
+        return 0
       }
     }
     default {
@@ -359,7 +322,7 @@ proc ::graphql::parse::directive directive {
     }
   }
 
-  return true
+  return 1
 
 }
 
@@ -406,13 +369,13 @@ proc ::graphql::parse::body remaining {
 
 proc ::graphql::parse::nextType remaining {
   upvar 1 props pprops
-  # upvar 1 lvl plvl
   upvar 1 parsed parsed
+  # upvar 1 lvl plvl
   # set lvl [expr {$plvl + 1}]
 
   while {[string index $remaining 0] ne "\}" && $remaining ne {}} {
     unset -nocomplain name
-    set skip false
+    set skip  0
     set props [list]
 
     regexp -- $::graphql::regexp::graphql_next_query_re $remaining \
@@ -432,7 +395,7 @@ proc ::graphql::parse::nextType remaining {
       # directive will tell us whether or not we should be
       # including the value.
       if {![::graphql::parse::directive $directive]} {
-        set skip true
+        set skip 1
       }
     }
 
