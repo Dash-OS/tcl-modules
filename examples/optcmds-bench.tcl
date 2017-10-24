@@ -5,15 +5,8 @@ namespace eval ::optcmds {
   namespace export oproc omethod oapply
 }
 
-variable ::optcmds::error_expects_val {
-  return \
-    -code error \
-    -errorCode [list PROC_OPTS INVALID_OPT VALUE_REQUIRED $opt] \
-    " option \"$opt\" expects a value \"[dict get $odef $opt]\" but none was provided"
-}
-
 # parsed received $args when the given command is invoked
-proc ::optcmds::eatargs odef {
+proc ::optcmds::eatargs {argnames odef} {
   upvar 1 args args
   upvar 1 opts opts
   set opts [dict create]
@@ -23,13 +16,40 @@ proc ::optcmds::eatargs odef {
     if {[dict get $odef $opt] eq {}} {
       dict set opts $opt 1
     } elseif {![llength $args]} {
-      try $::optcmds::error_expects_val
+      return \
+        -code error \
+        -errorCode [list PROC_OPTS INVALID_OPT VALUE_REQUIRED $opt] \
+        " option \"$opt\" expects a value \"[dict get $odef $opt]\" but none was provided"
     } else {
       set args [lassign $args val]
       if {[string index $val 0] eq "-" && [dict exists $odef $val]} {
-        try $::optcmds::error_expects_val
+        return \
+          -code error \
+          -errorCode [list PROC_OPTS INVALID_OPT VALUE_REQUIRED $opt] \
+          " option \"$opt\" expects a value \"[dict get $odef $opt]\" but none was provided"
       }
       dict set opts $opt $val
+    }
+  }
+  if {[lindex $argnames end] ne "args"} {
+    if {[llength $argnames] ne [llength $args]} {
+      return \
+        -code error \
+        -errorCode [list TCL WRONGARGS] \
+        "wrong #args: should be \"$argnames\""
+    }
+    uplevel 1 [list lassign $args {*}$argnames]
+    unset args
+  } else {
+    foreach name [lrange $argnames 0 end-1] {
+      if {![llength $args]} {
+        return \
+          -code error \
+          -errorCode [list TCL WRONGARGS] \
+          "wrong #args: should be \"$argnames\""
+      }
+      set args [lassign $args val]
+      uplevel 1 [list set $name $val]
     }
   }
 }
@@ -63,29 +83,22 @@ proc ::optcmds::define {kind name pargs body args} {
     if {[string index $opt 0] ne "-"} {
       dict set odef $key $opt
       set oargs [lassign $oargs opt]
-      if {[string index $opt 0] ne "-"} {
-        dict set odef $key $opt
-        set oargs [lassign $oargs opt]
-      }
     } else {
       dict set odef $key {}
     }
   }
 
-  set process [format {::optcmds::eatargs [dict create %s]} $odef]
+  set process [format {::optcmds::eatargs [list %s] [dict create %s]} $argnames $odef]
 
   switch -- $kind {
     apply {
       set cmd [format \
-        {::apply {args {%s;::tailcall ::apply [::list {opts %s} {%s} [::namespace current]] $opts {*}$args} {%s}} %s} \
+        {::apply {args {%s;%s} {%s}} %s} \
         $process $argnames $body $name $args
       ]
     }
     default {
-      set cmd [format \
-        {%s %s args {%s;::tailcall ::apply [::list {opts %s} {%s} [::namespace current]] $opts {*}$args}} \
-        $kind $name $process $argnames $body
-      ]
+      set cmd [format {%s %s args {%s;%s}} $kind $name $process $body]
     }
   }
 
@@ -113,7 +126,7 @@ proc ::optcmds::define [list -define -- {*}[info args ::optcmds::define]] [info 
 # and oproc becomes an oproc as well
 ::optcmds::define \
 proc ::optcmds::oproc {-define -- name pargs body} {
-  tailcall ::optcmds::define {*}[dict keys $opts] -- proc $name $pargs $body
+  tailcall ::optcmds::define {*}[dict keys $opts] proc $name $pargs $body
 }
 
 # as does omethod
@@ -133,12 +146,12 @@ proc ::optcmds::oapply {-define -- spec args} {
 namespace import ::optcmds::*
 
 
-oproc myproc {-all -inline -not -upvar varName -- one two args} {
+oproc myproc {-all -inline -not -upvar varName -- one two} {
   if {[dict exists $opts -all]} {}
 }
 
 proc bench {} {
-  puts [time {myproc -inline -all -upvar myvar foo bar baz} 10000]
+  puts [time {myproc -inline -all -upvar myvar foo bar} 10000]
 }
 
-bench
+# bench
