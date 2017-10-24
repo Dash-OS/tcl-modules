@@ -10,7 +10,9 @@ variable ::optcmds::error_expects_val {
 }
 
 # parsed received $args when the given command is invoked
-variable ::optcmds::eval_parse_opts {
+proc ::optcmds::eatargs odef {
+  upvar 1 args args
+  upvar 1 opts opts
   set opts [dict create]
   while {[dict exists $odef [lindex $args 0]]} {
     set args [lassign $args opt]
@@ -72,19 +74,19 @@ proc ::optcmds::define {kind name pargs body args} {
     }
   }
 
-  set process [list [list set odef $odef] [list set argnames $argnames] {try $::optcmds::eval_parse_opts}]
+  set process [format {::optcmds::eatargs [dict create %s]} $odef]
 
   switch -- $kind {
     apply {
       set cmd [format \
         {::apply {args {%s;::tailcall ::apply [::list {opts %s} {%s} [::namespace current]] $opts {*}$args} {%s}} %s} \
-        [join $process \;] $argnames $body $name $args
+        $process $argnames $body $name $args
       ]
     }
     default {
       set cmd [format \
         {%s %s args {%s;::tailcall ::apply [::list {opts %s} {%s} [::namespace current]] $opts {*}$args}} \
-        $kind $name [join $process \;] $argnames $body
+        $kind $name $process $argnames $body
       ]
     }
   }

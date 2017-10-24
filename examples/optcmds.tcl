@@ -5,8 +5,23 @@ namespace import ::optcmds::*
 
 # simple example
 oproc myproc {-foo -- bar} {
-  puts "opts | $opts"
-  puts "bar  | $bar"
+  if {[dict exists $opts -foo]} {
+    return $bar
+  } else {
+    return 0
+  }
+}
+
+proc myproc args {
+  if {"-foo" in $args} {
+    return [lindex $args 1]
+  } else {
+    return 0
+  }
+}
+
+proc bench {} {
+  time {myproc -foo one} 10000
 }
 
 myproc -foo one
