@@ -63,6 +63,10 @@ proc ::optcmds::define {kind name pargs body args} {
     if {[string index $opt 0] ne "-"} {
       dict set odef $key $opt
       set oargs [lassign $oargs opt]
+      if {[string index $opt 0] ne "-"} {
+        dict set odef $key $opt
+        set oargs [lassign $oargs opt]
+      }
     } else {
       dict set odef $key {}
     }

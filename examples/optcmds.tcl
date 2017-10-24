@@ -17,6 +17,29 @@ myproc two
 # opts |
 # bar  | two
 
+# default values syntax would need to be something like this
+# where only options requiring a value are capable of having
+# a default value.
+#
+# it is not worth losing toggle switches (-opt) otherwise as defining
+# every toggle switch with -opt 1 and -opt 0 is fairly redundant.
+#
+# this syntax does allow the more advanded named arg features as it generally
+# is the same syntax (other than the toggle switches still being avaiable
+# and the first value being a name of the value).
+#
+# at this time - this style is not going to be apart of the specification
+# as it muddies up the syntax.
+# oproc myproc {
+#   -command {callback -default ::cleanup}
+#   -timeout {ms -d 15000}
+#   -keepalive
+#   -- arg1 arg2 args
+# } {
+#   puts "opts | $opts"
+#   puts "$arg1 $arg2 | $args"
+# }
+
 namespace eval ::test {
   # create ::test::lambda with an option to set the namespace to use for
   # the apply invocation. If not defined, default to current namespace instead
