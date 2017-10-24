@@ -1,15 +1,13 @@
 
 namespace eval ::oo::metaclass {
-
   variable i 0
 
   variable Build_Prefix_Meta {
     superclass ::oo::metaclass
   }
-
 }
 
-proc ::oo::metaclass::construct {} { uplevel 1 {
+proc ::oo::metaclass::construct {} {uplevel 1 {
   namespace unknown [list ::oo::metaclass::unknown [info object class [self]]]
   namespace path [list \
     [[info object class [self]] namespace] \

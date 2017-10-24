@@ -5,8 +5,8 @@ namespace eval ::react ensembled
 variable ::react::i 0
 
 # Currently we need to redefine the metaclass unknown definition to handle our
-# component resolution.  This way we can internally handle creation and deletion
-
+# component resolution.  This way we can internally handle creation and deletion.
+# TODO: Implement a workaround here.
 proc ::oo::metaclass::unknown {self what args} {
   if { [string equal [string index $what 0] *] } {
     # Our Modifications to metaclasses unknown
@@ -44,7 +44,7 @@ proc ::react::render args {
 
 ::oo::class create ::react::mixin {
   variable @@COMPONENT PROPS STATE
-  
+
   constructor {context args} {
     set STATE [my static default_state]
     set PROPS [dict merge [my static default_props] [lindex $args 0]]
@@ -52,12 +52,12 @@ proc ::react::render args {
     dict set @@COMPONENT status disable_state_rerender 1
     if { [self next] ne {} } { next {*}$args }
     dict unset @@COMPONENT status disable_state_rerender
-    
+
     my componentWillMount
     my @@Render
     my componentDidMount
   }
-  
+
   destructor {
     my @@UnmountChildren @@all
     if { [self next] ne {} } { next }
@@ -66,13 +66,13 @@ proc ::react::render args {
       namespace delete [namespace qualifiers [self]]
     }
   }
-  
+
   method static {cmd args} {
     tailcall [info object class [self]] $cmd {*}$args
   }
-  
+
   method @namespace {} { return [namespace current] }
-  
+
   method @@RenderChild { C args } {
     set component [set @@COMPONENT]
     if { ! [dict exists $component status rendering] } {
@@ -100,12 +100,12 @@ proc ::react::render args {
           [format { dict set @@COMPONENT c {%s} ${_component} } $key ] \
         ] \;]
       }
-      
+
     }
     dict lappend @@COMPONENT rendered $key
     dict incr @@COMPONENT render_child
   }
-  
+
   method @@CompleteRender {} {
     set component [set @@COMPONENT]
     if { [dict exists $component render_queue_id] } {
@@ -120,12 +120,12 @@ proc ::react::render args {
       dict unset @@COMPONENT render_queue
     }
   }
-  
+
   # Internal method that we call when we want to start a render process.
   method @@Render {} {
-    # We do this as a workaround of the bug 
+    # We do this as a workaround of the bug
     # http://core.tcl.tk/tcl/tktview/900cb0284bcf1bf27038a7ae02c9f1440b150c86
-    if { [my render 1] eq {} } { 
+    if { [my render 1] eq {} } {
       return
     }
     dict set @@COMPONENT status rendering 1
@@ -150,11 +150,11 @@ proc ::react::render args {
     dict unset @@COMPONENT status rendering
     dict unset @@COMPONENT rendered
   }
-  
+
   method @@Child { key } {
     return [ [self]::c::${key} @namespace ]
   }
-  
+
   method @@UnmountChildren { children } {
     if { $children eq "@@all" } {
       set children {}
@@ -168,31 +168,31 @@ proc ::react::render args {
       dict unset @@COMPONENT c $key
     }
   }
-  
+
   method @@Log msg {
     set msg "[my static display_name] | [self] | $msg"
     # ~! "UI Log" "$msg" \
     #   -type "info"
     return $msg
   }
-  
-  # my setState $state 
-  #   Performs a shallow merge of nextState into current state. This is the primary 
-  #   method you use to trigger UI updates from event handlers and server request 
+
+  # my setState $state
+  #   Performs a shallow merge of nextState into current state. This is the primary
+  #   method you use to trigger UI updates from event handlers and server request
   #   callbacks.
-  # 
-  #   setState does not immediately mutate this.state but creates a pending state 
-  #   transition. Accessing this.state after calling this method can potentially 
+  #
+  #   setState does not immediately mutate this.state but creates a pending state
+  #   transition. Accessing this.state after calling this method can potentially
   #   return the existing value.
   method setState { state } {
     set component [set @@COMPONENT]
     if { [dict exists $component status disable_state_rerender] } {
       set rerender 0
-    } else { 
+    } else {
       if { [dict exists $component status disable_set_state] } {
         throw error "[my static display_name] | You may not set state from within a render or update lifecycle, this will cause an endless loop"
       } else {
-        set rerender 1  
+        set rerender 1
       }
     }
     if { [dict exists $component next_state] } {
@@ -200,26 +200,26 @@ proc ::react::render args {
         [dict get $component next_state] \
         $state
       ]
-    } else { 
+    } else {
       dict set @@COMPONENT next_state $state
     }
     if { $rerender && ! [dict exists $component queued_update] } {
       dict set @@COMPONENT queued_update [ after 0 \
         [namespace code [list my shouldComponentUpdate]]
-      ] 
+      ]
     }
   }
-  
+
   method setProps { props } {
     set component [set @@COMPONENT]
     if { [dict exists $component next_props] } {
       set next_props [dict merge \
         [dict get $component next_props] \
         $props
-      ] 
+      ]
     } else { set next_props $props }
-    if { $next_props ne $PROPS } { 
-      dict set @@COMPONENT next_props $next_props  
+    if { $next_props ne $PROPS } {
+      dict set @@COMPONENT next_props $next_props
       if { ! [dict exists $component queued_props_update] } {
         dict set @@COMPONENT queued_props_update [ after 0 \
           [namespace code [list my componentWillReceiveProps]]
@@ -231,51 +231,51 @@ proc ::react::render args {
         dict unset @@COMPONENT queued_props_update
       }
       if { [dict exists $component next_props] } {
-        dict unset @@COMPONENT next_props 
+        dict unset @@COMPONENT next_props
       }
     }
   }
-  
+
   # When we want to check if we should update the component, this will be called.
   # If our child has the method defined then we will use their response to determine
   # if we should update.  Otherwise we will simply update.
   #
   # -- When defined in the component:
-  # Use shouldComponentUpdate() to let React know if a component's output is not affected 
-  # by the current change in state or props. The default behavior is to re-render on 
-  # every state change, and in the vast majority of cases you should rely on the default 
+  # Use shouldComponentUpdate() to let React know if a component's output is not affected
+  # by the current change in state or props. The default behavior is to re-render on
+  # every state change, and in the vast majority of cases you should rely on the default
   # behavior.
   method shouldComponentUpdate { {force 0} } {
     dict set @@COMPONENT disable_set_state 1
     set component [set @@COMPONENT]
-    
+
     set prev_props $PROPS ; set prev_state $STATE
-    
+
     if { [dict exists $component queued_update] } {
       after cancel [dict get $component queued_update]
       dict unset @@COMPONENT queued_updated
     }
-    
+
     if { [dict exists $component queued_props_update] } {
       after cancel [dict get $component queued_props_update]
       dict unset @@COMPONENT queued_props_update
     }
-    
+
     if { [dict exists $component next_state] } {
-      set next_state [dict merge $STATE [dict get $component next_state]] 
+      set next_state [dict merge $STATE [dict get $component next_state]]
       dict unset @@COMPONENT next_state
     } else { set next_state $STATE }
-    
+
     if { [dict exists $component next_props] } {
-      set next_props [dict merge $PROPS [dict get $component next_props]] 
+      set next_props [dict merge $PROPS [dict get $component next_props]]
       dict unset @@COMPONENT next_props
     } else { set next_props $PROPS }
-    
+
     # Have the props or state changed during this update?  If the net result
     # does not have any changed values then we won't even call the child.
     if { $force || $next_props ne $PROPS || $next_state ne $STATE } {
-      if { ! $force && [self next] ne {} } { 
-        if { [ string is true -strict [next $next_props $next_state] ] } { 
+      if { ! $force && [self next] ne {} } {
+        if { [ string is true -strict [next $next_props $next_state] ] } {
           set update 1
         }
       } else { set update 1 }
@@ -288,34 +288,34 @@ proc ::react::render args {
       set STATE $next_state
       set PROPS $next_props
     } else { return }
-    
+
     # Should we call the render method?
-    if { [info exists update] } { 
+    if { [info exists update] } {
       my @@Render
       my componentDidUpdate $prev_props $prev_state
     }
     # Ok, we can now allow updating of state again!
     dict unset @@COMPONENT status disable_set_state
   }
-  
-  # componentWillUpdate() is invoked immediately before rendering when new props or 
-  # state are being received. Use this as an opportunity to perform preparation before 
+
+  # componentWillUpdate() is invoked immediately before rendering when new props or
+  # state are being received. Use this as an opportunity to perform preparation before
   # an update occurs. This method is not called for the initial render.
   method componentWillUpdate { next_props next_state } {
     if { [self next] ne {} } { catch { next $next_props $next_state } }
   }
-  
-  # componentDidUpdate() is invoked immediately after updating occurs. This method 
+
+  # componentDidUpdate() is invoked immediately after updating occurs. This method
   # is not called for the initial render.
   method componentDidUpdate { prev_props prev_state } {
-    if { [self next] ne {} } { 
+    if { [self next] ne {} } {
       next $prev_props $prev_state
     }
   }
 
-  # componentWillUnmount() is invoked immediately before a component is unmounted and 
-  # destroyed. Perform any necessary cleanup in this method, such as invalidating timers, 
-  # canceling network requests, or cleaning up any DOM elements that were created in 
+  # componentWillUnmount() is invoked immediately before a component is unmounted and
+  # destroyed. Perform any necessary cleanup in this method, such as invalidating timers,
+  # canceling network requests, or cleaning up any DOM elements that were created in
   # componentDidMount
   method componentWillUnmount {} {
     set component [set @@COMPONENT]
@@ -325,26 +325,26 @@ proc ::react::render args {
     if { [self next] ne {} } { catch { next } }
     [self] destroy
   }
-  
-  # componentWillMount() is invoked immediately before mounting occurs. It is called 
-  # before render(), therefore setting state in this method will not trigger a 
+
+  # componentWillMount() is invoked immediately before mounting occurs. It is called
+  # before render(), therefore setting state in this method will not trigger a
   # re-rendering. Avoid introducing any side-effects or subscriptions in this method.
   method componentWillMount {} {
     if { [self next] ne {} } { next }
   }
-  
+
   method componentDidMount {} {
     if { [self next] ne {} } { next }
   }
-  
-  # componentWillReceiveProps() is invoked before a mounted component receives new props. 
-  # If you need to update the state in response to prop changes (for example, to reset it), 
-  # you may compare this.props and nextProps and perform state transitions using this.setState() 
+
+  # componentWillReceiveProps() is invoked before a mounted component receives new props.
+  # If you need to update the state in response to prop changes (for example, to reset it),
+  # you may compare this.props and nextProps and perform state transitions using this.setState()
   # in this method.
   method componentWillReceiveProps {} {
     set component [set @@COMPONENT]
     if { [dict exists $component next_props] } {
-      if { [self next] ne {} } { 
+      if { [self next] ne {} } {
         dict set @@COMPONENT status disable_state_rerender 1
         catch { next [dict get $component next_props] }
         dict unset @@COMPONENT status disable_state_rerender
@@ -352,16 +352,16 @@ proc ::react::render args {
       my shouldComponentUpdate
     }
   }
-  
+
   method render { {check 0} } {
     if { $check } { return [self next] }
     if { [self next] ne {} } { next }
   }
-  
-  # By default, when your component's state or props change, your component will 
-  # re-render. If your render() method depends on some other data, you can tell 
+
+  # By default, when your component's state or props change, your component will
+  # re-render. If your render() method depends on some other data, you can tell
   # React that the component needs re-rendering by calling forceUpdate().
-  method forceUpdate {} { 
+  method forceUpdate {} {
     # set component [set @@COMPONENT]
     # if { [dict exists $component queued_update] } {
     #   after cancel [dict get $component queued_update]
@@ -371,43 +371,43 @@ proc ::react::render args {
     # ]
     my shouldComponentUpdate 1
   }
-  
+
   # method render {} {
   #   if { [self next] ne {} } { next }
   # }
-  
+
   # Do not allow outside calls of our lifecycle methods
   unexport render shouldComponentUpdate componentDidUpdate \
            componentDidMount componentWillMount setState \
            componentWillUnmount componentWillUpdate \
            componentWillReceiveProps forceUpdate setProps \
            destroy
-  
+
   # Used to get the objects namespace.  This is how we override
   # and call the lifecycle methods as necessary from the parent.
   export   @namespace
-  
+
 }
 
 # Our Component metaclass handles the internal syntax and static values
-# capabilities. 
+# capabilities.
 ::oo::metaclass create Component {
 
   # We want all children to use ::Components as their base namespace.  Their
   # command resolution still occurs where created and they have access to resolve
-  # commands defined within the namespace it is created within.  
+  # commands defined within the namespace it is created within.
   #
   # If this is not defined, then each component would be rendered within the ns
-  # that creates it which makes it harder to conduct introspection and 
+  # that creates it which makes it harder to conduct introspection and
   # cleanup.
   scope ::react::components
-  
+
   constructor data {
     next [join [list $data {
       mixin -append ::react::mixin
     } \;]]
   }
-  
+
   method default_props { {props {}} } {
     my variable default_props
     if { [info exists default_props] } {
@@ -416,20 +416,20 @@ proc ::react::render args {
       set default_props [dict create {*}$props]
     }
   }
-  
+
   method default_state { {state {}} } {
     my variable default_state
     if { [info exists default_state] } {
-      return $default_state 
+      return $default_state
     } elseif { $state ne {} } {
       set default_state [dict create {*}$state]
     }
   }
-  
+
   method display_name { {name {}} } {
     my variable display_name
     if { [info exists display_name] || $name eq {} } {
-      return [expr { [info exists display_name] 
+      return [expr { [info exists display_name]
         ? $display_name
         : [uplevel 1 {self}]
       }]
@@ -437,14 +437,14 @@ proc ::react::render args {
       set display_name $name
     }
   }
-  
+
   method static { prop {to {}} } {
     my variable $prop
     if { $to ne {} } {
       set $prop $to
     } elseif { [info exists $prop] } { return [set $prop] }
   }
-  
+
   method ref { key args } {
     if { $args ne {} } {
       tailcall [uplevel 1 {self}]::c::$key {*}$args
@@ -452,5 +452,5 @@ proc ::react::render args {
       return [uplevel 1 {self}]::c::$key
     }
   }
-  
+
 }
