@@ -138,5 +138,7 @@ oproc myproc {-all -inline -not -upvar varName -- one two args} {
 }
 
 proc bench {} {
-  time {myproc -inline -all -upvar myvar foo bar baz} 10000
+  puts [time {myproc -inline -all -upvar myvar foo bar baz} 10000]
 }
+
+bench
