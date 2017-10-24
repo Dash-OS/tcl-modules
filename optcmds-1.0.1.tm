@@ -68,7 +68,7 @@ proc ::optcmds::define {kind name pargs body args} {
     }
   }
 
-  set process [list [list set odef $odef] [list set argnames $argnames] $::optcmds::eval_parse_opts]
+  set process [list [list set odef $odef] [list set argnames $argnames] {try $::optcmds::eval_parse_opts}]
 
   switch -- $kind {
     apply {
