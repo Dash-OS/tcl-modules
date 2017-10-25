@@ -10,30 +10,36 @@ proc ::optcmds::eatargs {argnames odef} {
   upvar 1 args args
   upvar 1 opts opts
   set opts [dict create]
-  while {[dict exists $odef [lindex $args 0]]} {
-    set args [lassign $args opt]
-    if {$opt eq "--"} { break }
-    if {[dict get $odef $opt] eq {}} {
-      dict set opts $opt 1
-    } elseif {![llength $args]} {
-      return \
-        -code error \
-        -errorCode [list PROC_OPTS INVALID_OPT VALUE_REQUIRED $opt] \
-        " option \"$opt\" expects a value \"[dict get $odef $opt]\" but none was provided"
-    } else {
-      set args [lassign $args val]
-      if {[string index $val 0] eq "-" && [dict exists $odef $val]} {
-        return \
-          -code error \
-          -errorCode [list PROC_OPTS INVALID_OPT VALUE_REQUIRED $opt] \
-          " option \"$opt\" expects a value \"[dict get $odef $opt]\" but none was provided"
+  set i -1;
+  if {![llength $args]} {
+    return
+  }
+  while {1} {
+    set opt [lindex $args [incr i]]
+    if {[dict exists $odef $opt] && $opt ne "--"} {
+      if {[dict get $odef $opt] eq {}} {
+        dict set opts $opt 1
+      } else {
+        set val [lindex $args [incr i]]
+        if {$val eq {} || $val eq "--" || ([string index $val 0] eq "-" && [dict exists $odef $val])} {
+          tailcall return \
+            -code error \
+            -errorCode [list PROC_OPTS INVALID_OPT VALUE_REQUIRED $opt] \
+            " option \"$opt\" expects a value \"[dict get $odef $opt]\" but none was provided"
+        }
+        dict set opts $opt $val
       }
-      dict set opts $opt $val
+    } elseif {$opt ne "--"} {
+      incr i -1
+      break
+    } else {
+      break
     }
   }
+  set args [lreplace $args[set args {}] 0 $i]
   if {[lindex $argnames end] ne "args"} {
-    if {[llength $argnames] ne [llength $args]} {
-      return \
+    if {[llength $argnames] != [llength $args]} {
+      tailcall return \
         -code error \
         -errorCode [list TCL WRONGARGS] \
         "wrong #args: should be \"$argnames\""
@@ -43,12 +49,12 @@ proc ::optcmds::eatargs {argnames odef} {
   } else {
     foreach name [lrange $argnames 0 end-1] {
       if {![llength $args]} {
-        return \
+        tailcall return \
           -code error \
           -errorCode [list TCL WRONGARGS] \
           "wrong #args: should be \"$argnames\""
       }
-      set args [lassign $args val]
+      set args  [lassign $args val]
       uplevel 1 [list set $name $val]
     }
   }
@@ -92,10 +98,11 @@ proc ::optcmds::define {kind name pargs body args} {
 
   switch -- $kind {
     apply {
-      set cmd [format \
-        {::apply {args {%s;%s} {%s}} %s} \
-        $process $argnames $body $name $args
-      ]
+      # set cmd [format \
+      #   {::apply {args {%s;%s} {%s}} %s} \
+      #   $process $argnames $body $name $args
+      # ]
+      set cmd [list ::apply [list args [join [list $process $body] \;] $name] {*}$args]
     }
     default {
       set cmd [format {%s %s args {%s;%s}} $kind $name $process $body]
@@ -141,17 +148,16 @@ proc ::optcmds::oapply {-define -- spec args} {
   tailcall ::optcmds::define {*}[dict keys $opts] -- apply [lindex $spec 2] [lindex $spec 0] [lindex $spec 1] {*}$args
 }
 
+# namespace import ::optcmds::*
+#
+# oproc myproc {-all -inline -not -upvar varName -- one two args} {
+#   if {[dict exists $opts -all]} {}
+# }
+#
+# proc bench {} {
+#   puts [time {myproc -upvar val foo bar baz qux} 10000]
+# }
 
-
-namespace import ::optcmds::*
-
-
-oproc myproc {-all -inline -not -upvar varName -- one two} {
-  if {[dict exists $opts -all]} {}
-}
-
-proc bench {} {
-  puts [time {myproc -inline -all -upvar myvar foo bar} 10000]
-}
-
-# bench
+# oproc -define myproc {-all -inline -not -upvar varName -- one two args} {
+#   if {[dict exists $opts -all]} {}
+# }
