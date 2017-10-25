@@ -225,3 +225,20 @@ oproc myproc {-v -- args} {
 }
 
 myproc -v -v -v hello!
+
+
+# awesome, the body only has an incr... but the args take time to read and
+# understand
+proc namedproc { {var -name var -upvar 1 -required 1} {i -name i -default 1} } {
+  incr var $i
+}
+
+proc optsproc {-var varName -i {incr 1} --} {
+  if {![info exists opts(-var)]} {
+    # throw your error here - with any implementation-specific information
+    # helpful to the caller
+  } else {
+    upvar $opts(-var) var
+    incr var $opts(-i)
+  }
+}
