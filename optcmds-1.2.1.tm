@@ -12,7 +12,7 @@ proc ::optcmds::eatargs {argnames odef} {
   # upvar 1 $name opts
 
   set opts [dict get $odef defaults]
-  dict lappend opts -- {*}$opts
+  dict lappend opts {} {*}$opts
   set alength [llength $args]
 
   if {$alength} {
@@ -22,14 +22,14 @@ proc ::optcmds::eatargs {argnames odef} {
       if {[dict exists $odef schema $opt] && $opt ne "--"} {
         if {[dict get $odef schema $opt] eq {}} {
           dict set opts $opt 1
-          dict lappend opts -- $opt
+          dict lappend opts {} $opt
         } else {
           set val [lindex $args [incr i]]
           if {$alength < $i || $val eq "--" || ([string index $val 0] eq "-" && [dict exists $odef schema $val])} {
             tailcall return -code error -errorCode [list PROC_OPTS INVALID_OPT VALUE_REQUIRED $opt] " option \"$opt\" expects a value \"[dict get $odef schema $opt]\" but none was provided"
           }
           dict set opts $opt $val
-          dict lappend opts -- $opt $val
+          dict lappend opts {} $opt $val
         }
       } elseif {$opt ne "--"} {
         incr i -1
@@ -153,20 +153,19 @@ proc ::optcmds::define [list -define -noopts -opts {optsName opts} -- {*}[info a
 # and oproc becomes an oproc as well
 ::optcmds::define \
 proc ::optcmds::oproc {-define -noopts -opts {optsName opts} -- name pargs body} {
-  parray opts
-  tailcall ::optcmds::define {*}$opts(--) -- proc $name $pargs $body
+  tailcall ::optcmds::define {*}$opts() -- proc $name $pargs $body
 }
 
 # as does omethod
 ::optcmds::define \
 proc ::optcmds::omethod {-define -noopts -opts {optsName opts} -- name pargs body} {
-  tailcall ::optcmds::define {*}$opts(--) -- method $name $pargs $body
+  tailcall ::optcmds::define {*}$opts() -- method $name $pargs $body
 }
 
 # and oapply
 ::optcmds::define \
 proc ::optcmds::oapply {-define -noopts -opts {optsName opts} -- spec args} {
-  tailcall ::optcmds::define {*}$opts(--) -- apply [lindex $spec 2] [lindex $spec 0] [lindex $spec 1] {*}$args
+  tailcall ::optcmds::define {*}$opts() -- apply [lindex $spec 2] [lindex $spec 0] [lindex $spec 1] {*}$args
 }
 
 #
