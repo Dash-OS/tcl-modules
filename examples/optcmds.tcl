@@ -5,7 +5,6 @@ namespace import ::optcmds::*
 
 # simple example
 oproc myproc {-foo -- bar} {
-  puts [array get opts]
   if {[info exists opts(-foo)]} {
     return $bar
   } else {
