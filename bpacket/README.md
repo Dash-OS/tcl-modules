@@ -190,16 +190,19 @@ package require bpacket::type::varint
 set n 1508014884331554
 
 set encoded [bpacket encode varint $n]
-set raw_compressed [zlib compress $n]
-set enc_compressed [zlib compress $encoded]
+set raw_compressed [zlib deflate $n]
 
 puts "
   Value: $n
-  Raw Length:                [string length $n]
-  Encoded Length:            [string length $encoded]
-  Raw Compressed Length:     [string length $raw_compressed]
-  Encoded Compressed Length: [string length $enc_compressed]
+  Raw Length:            [string length $n]
+  Encoded Length:        [string length $encoded]
 "
+```
+
+```
+  Value: 1508014884331554
+  Raw Length:                16
+  Encoded Length:            8
 ```
 
 ### boolean
