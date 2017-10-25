@@ -22,7 +22,7 @@ proc ::optcmds::eatargs {argnames odef} {
       set opt [lindex $args [incr i]]
       if {[dict exists $odef schema $opt] && $opt ne "--"} {
         if {[dict get $odef schema $opt] eq {}} {
-          dict set opts $opt 1
+          dict incr opts $opt
           lappend raw $opt
         } else {
           set val [lindex $args [incr i]]
