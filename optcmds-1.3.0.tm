@@ -9,7 +9,6 @@ namespace eval ::optcmds {
 proc ::optcmds::eatargs {argnames odef} {
   upvar 1 args args
   set name [dict get $odef name]
-  # upvar 1 $name opts
 
   set opts [dict get $odef defaults]
   set raw  $opts
@@ -35,7 +34,6 @@ proc ::optcmds::eatargs {argnames odef} {
           } else {
             lappend raw $opt $val
           }
-
         }
       } elseif {$opt ne "--"} {
         incr i -1
@@ -65,14 +63,19 @@ proc ::optcmds::eatargs {argnames odef} {
       uplevel 1 [list set $v $val]
     }
   }
-  if {$name eq {}} {
-    uplevel 1 {
-      dict with {} {}
-      unset {}
+
+  dict set opts {} $raw
+  switch -- [dict get $odef type] {
+    d { uplevel 1 [list set $name $opts] }
+    a { uplevel 1 [list array set $name $opts] }
+    l {
+      dict unset opts {}
+      uplevel 1 [list set {} $opts]
+      uplevel 1 {
+        dict with {} {}
+        unset {}
+      }
     }
-  } else {
-    dict set opts {} $raw
-    uplevel 1 [list array set $name $opts]
   }
 }
 
@@ -99,12 +102,22 @@ proc ::optcmds::define {kind name pargs body args} {
   set olength [llength $oargs]
   set odef [dict create schema [dict create -- {}] defaults [dict create] params [dict create]]
 
-  if {[info exists opts(-opts)]} {
-    dict set odef name $opts(-opts)
-  } elseif {[info exists opts(-noopts)]} {
+  if {[info exists opts(-optsdict)]} {
+    dict set odef type d
+  } else {
+    dict set odef type a
+  }
+
+  if {[info exists opts(-noopts)]} {
     dict set odef name {}
+  } elseif {[info exists opts(-opts)]} {
+    dict set odef name $opts(-opts)
   } else {
     dict set odef name opts
+  }
+
+  if {[dict get $odef name] eq {}} {
+    dict set odef type l
   }
 
   set i -1
@@ -155,23 +168,23 @@ proc ::optcmds::define {kind name pargs body args} {
 
 # now lets make define itself an oproc!
 ::optcmds::define \
-proc ::optcmds::define [list -define -noopts -opts {optsName opts} -- {*}[info args ::optcmds::define]] [info body ::optcmds::define]
+proc ::optcmds::define [list -define -noopts -opts {optsName opts} -optsdict -- {*}[info args ::optcmds::define]] [info body ::optcmds::define]
 
 # and oproc becomes an oproc as well
 ::optcmds::define \
-proc ::optcmds::oproc {-define -noopts -opts {optsName opts} -- name pargs body} {
+proc ::optcmds::oproc {-define -noopts -opts {optsName opts} -optsdict -- name pargs body} {
   tailcall ::optcmds::define {*}$opts() -- proc $name $pargs $body
 }
 
 # as does omethod
 ::optcmds::define \
-proc ::optcmds::omethod {-define -noopts -opts {optsName opts} -- name pargs body} {
+proc ::optcmds::omethod {-define -noopts -opts {optsName opts} -optsdict -- name pargs body} {
   tailcall ::optcmds::define {*}$opts() -- method $name $pargs $body
 }
 
 # and oapply
 ::optcmds::define \
-proc ::optcmds::oapply {-define -noopts -opts {optsName opts} -- spec args} {
+proc ::optcmds::oapply {-define -noopts -opts {optsName opts} -optsdict -- spec args} {
   tailcall ::optcmds::define {*}$opts() -- apply [lindex $spec 2] [lindex $spec 0] [lindex $spec 1] {*}$args
 }
 

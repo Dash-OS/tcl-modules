@@ -17,37 +17,94 @@ proc bench {} {
 }
 
 myproc -foo one
-# opts | -foo 1
-# bar  | one
+# one
 
 myproc two
-# opts |
-# bar  | two
+# 0
 
-# default
-# as it muddies up the syntax.
+# default values are possible on any named values (not on switched values)
 oproc defaultsproc {
   -command {callback ::cleanup}
   -timeout {ms 15000}
   -keepalive
-  -- arg1 arg2 args
+  --
 } {
   parray opts
-  # ... body #
 }
+
+# $opts() contains the raw options that were received in a way that can then
+# be passed easily
+defaultsproc
+# opts()         = -command ::cleanup -timeout 15000
+# opts(-command) = ::cleanup
+# opts(-timeout) = 15000
+
+defaultsproc -command mycallback -keepalive
+# opts()           = -command mycallback -timeout 15000 -keepalive
+# opts(-command)   = mycallback
+# opts(-keepalive) = 1
+# opts(-timeout)   = 15000
+
+# it may be preferrable to instead receive a [dict] instead of [array] for
+# the opts value.  this can be achieved with -optsdict at this time this is
+# largely to provide various implementations to helpl determine the
+# best / generally accepted way for the final specification:
+oproc -optsdict defaultsproc {
+  -command {callback ::cleanup}
+  -timeout {ms 15000}
+  -keepalive
+  --
+} {
+  puts $opts
+}
+
+defaultsproc -command mycallback -keepalive
+# -command mycallback
+# -timeout 15000
+# -keepalive 1
+# {} {-command mycallback -timeout 15000 -keepalive}
+
+# the name of the opts variable can be changed if needed - this is another
+# thing that likely wouldnt be apart of a final specification
+oproc -opts optsArray defaultsproc {
+  -command {callback ::cleanup}
+  -timeout {ms 15000}
+  -keepalive
+  --
+} {
+  parray optsArray
+}
+defaultsproc -command mycallback -keepalive
+# optsArray()           = -command mycallback -timeout 15000 -keepalive
+# optsArray(-command)   = mycallback
+# optsArray(-keepalive) = 1
+# optsArray(-timeout)   = 15000
+
+# if one would rather simply have all the values as local variables, it can be
+# done with -noopts or by providing -opts {} .
+oproc -noopts defaultsproc {
+  -command {callback ::cleanup}
+  -timeout {ms 15000}
+  -keepalive
+  --
+} {
+  puts [info locals]
+}
+defaultsproc -command mycallback -keepalive
+# -timeout -command -keepalive
 
 namespace eval ::test {
   # create ::test::lambda with an option to set the namespace to use for
   # the apply invocation. If not defined, default to current namespace instead
   # of global (::test)
   oproc lambda {-ns namespace -- args} {
-    if {[dict exist $opts -ns]} {
-      set ns [dict get $opts -ns]
+    if {[info exists opts(-ns)]} {
+      set ns $opts(-ns)
     } else { set ns [namespace current] }
     # using options-based apply:
     oapply [list {-foo -- args} {
-      puts [namespace current]
       parray opts
+      puts "Namespace: [namespace current]"
       puts "args | $args"
     } $ns] {*}$args
   }
@@ -66,10 +123,16 @@ namespace eval ::test {
 # ::test::lambda -ns :: -- -foo -- one two three
 #
 # since we are passing the arguments of two different option invocations.
-::test::lambda  -foo one two three
-#  ::
-#  opts | -foo 1
-#  args | one two three
+::test::lambda -ns {} -foo one two three
+# opts()     = -foo
+# opts(-foo) = 1
+# Namespace: ::
+# args | one two three
+::test::lambda -foo one two three
+# opts()     = -foo
+# opts(-foo) = 1
+# Namespace: ::test
+# args | one two three
 
 
 ##### TclOO
@@ -85,7 +148,8 @@ namespace eval ::test {
 myclass create ::test::myobj
 ::test::myobj test -foo one two three
 # omethod called!
-# -foo 1
+# opts()     = -foo
+# opts(-foo) = 1
 # one two three
 
 # since omethod is itself an optcommand, we can pass -define to request
@@ -99,7 +163,9 @@ myclass create ::test::myobj
 
 ::test::myobj test -foo -bar FTW! one two three
 # modified omethod called!
-# -foo 1 -bar FTW!
+# opts()     = -foo -bar FTW!
+# opts(-bar) = FTW!
+# opts(-foo) = 1
 # one two three
 
 ####### apply
@@ -108,6 +174,7 @@ myclass create ::test::myobj
 # instead of executing it right away.  we can either call it into a list
 # or use -define
 variable example_lambda {{-foo -bar -- args} {
+  parray opts
   if {[info exists opts(-foo)]} {
     return foo!
   } elseif {[info exists opts(-bar)]} {
@@ -129,17 +196,20 @@ set foo [oapply -define $example_lambda -foo --]
 set bar [list oapply -- $example_lambda -bar --]
 
 set fooval [{*}$foo 1 2 3]
-# opts! | -foo 1
-# args! | 1 2 3
-# $fooval = foo!
+# opts()     = -foo
+# opts(-foo) = 1
+# foo!
 puts "$fooval is foo!"
 
 set barval [{*}$bar 4 5 6]
-# opts! | -bar 1
-# args! | 4 5 6
-# $barval = bar!
+# opts()     = -bar
+# opts(-bar) = 1
+# bar!
 puts "$barval is bar!"
 
-proc bench {} {
-  time {{*}$::bar 1 2 3} 10000
+proc benchfoo {} {
+  time {{*}$::foo 1 2 3} 10000
+}
+proc benchbar {} {
+  time {{*}$::bar 4 5 6} 10000
 }
