@@ -49,7 +49,7 @@ defaultsproc -command mycallback -keepalive
 # the opts value.  this can be achieved with -optsdict at this time this is
 # largely to provide various implementations to helpl determine the
 # best / generally accepted way for the final specification:
-oproc -optsdict defaultsproc {
+oproc -dictopts defaultsproc {
   -command {callback ::cleanup}
   -timeout {ms 15000}
   -keepalive
@@ -82,7 +82,7 @@ defaultsproc -command mycallback -keepalive
 
 # if one would rather simply have all the values as local variables, it can be
 # done with -noopts or by providing -opts {} .
-oproc -noopts defaultsproc {
+oproc -localopts defaultsproc {
   -command {callback ::cleanup}
   -timeout {ms 15000}
   -keepalive

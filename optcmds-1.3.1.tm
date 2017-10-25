@@ -102,22 +102,18 @@ proc ::optcmds::define {kind name pargs body args} {
   set olength [llength $oargs]
   set odef [dict create schema [dict create -- {}] defaults [dict create] params [dict create]]
 
-  if {[info exists opts(-optsdict)]} {
+  if {[info exists opts(-dictopts)]} {
     dict set odef type d
+  } elseif {[info exists opts(-localopts)]} {
+    dict set odef type l
   } else {
     dict set odef type a
   }
 
-  if {[info exists opts(-noopts)]} {
-    dict set odef name {}
-  } elseif {[info exists opts(-opts)]} {
+  if {[info exists opts(-opts)]} {
     dict set odef name $opts(-opts)
   } else {
     dict set odef name opts
-  }
-
-  if {[dict get $odef name] eq {}} {
-    dict set odef type l
   }
 
   set i -1
