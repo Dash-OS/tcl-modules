@@ -12,7 +12,7 @@ oproc myproc {-foo -- bar} {
   }
 }
 
-proc bench {} {
+proc benchmyproc {} {
   time {myproc -foo one} 10000
 }
 
@@ -218,7 +218,6 @@ proc benchbar {} {
 # per the wiki article, a change was made for switch-style
 # opts to increment their values when provided more than
 # one time.
-
 oproc myproc {-v -- args} {
   if {[info exists opts(-v)]} {
     puts "verbosity level is $opts(-v)"
