@@ -12,14 +12,6 @@ oproc myproc {-foo -- bar} {
   }
 }
 
-proc myproc args {
-  if {"-foo" in $args} {
-    return [lindex $args 1]
-  } else {
-    return 0
-  }
-}
-
 proc bench {} {
   time {myproc -foo one} 10000
 }
@@ -40,6 +32,7 @@ oproc defaultsproc {
   -keepalive
   -- arg1 arg2 args
 } {
+  parray opts
   # ... body #
 }
 
@@ -54,7 +47,7 @@ namespace eval ::test {
     # using options-based apply:
     oapply [list {-foo -- args} {
       puts [namespace current]
-      puts "opts | $opts"
+      parray opts
       puts "args | $args"
     } $ns] {*}$args
   }
@@ -84,7 +77,7 @@ namespace eval ::test {
 ::oo::class create myclass {
   omethod test {-foo -- args} {
     puts "omethod called!"
-    puts "$opts"
+    parray opts
     puts $args
   }
 }
@@ -100,7 +93,7 @@ myclass create ::test::myobj
 # allows us to pass it to ::oo::define for example:
 ::oo::define myclass {*}[omethod -define test {-foo -bar barVal -- args} {
   puts "modified omethod called!"
-  puts "$opts"
+  parray opts
   puts $args
 }]
 
@@ -115,9 +108,9 @@ myclass create ::test::myobj
 # instead of executing it right away.  we can either call it into a list
 # or use -define
 variable example_lambda {{-foo -bar -- args} {
-  if {[dict exists $opts -foo]} {
+  if {[info exists opts(-foo)]} {
     return foo!
-  } elseif {[dict exists $opts -bar]} {
+  } elseif {[info exists opts(-bar)]} {
     return bar!
   } else {
     return boring!
