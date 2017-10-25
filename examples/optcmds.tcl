@@ -213,3 +213,16 @@ proc benchfoo {} {
 proc benchbar {} {
   time {{*}$::bar 4 5 6} 10000
 }
+
+
+# per the wiki article, a change was made for switch-style
+# opts to increment their values when provided more than
+# one time.
+
+oproc myproc {-v -- args} {
+  if {[info exists opts(-v)]} {
+    puts "verbosity level is $opts(-v)"
+  }
+}
+
+myproc -v -v -v hello!
