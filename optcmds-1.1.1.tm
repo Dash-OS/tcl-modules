@@ -25,10 +25,7 @@ proc ::optcmds::eatargs {argnames odef} {
         } else {
           set val [lindex $args [incr i]]
           if {$alength < $i || $val eq "--" || ([string index $val 0] eq "-" && [dict exists $odef schema $val])} {
-            tailcall return \
-              -code error \
-              -errorCode [list PROC_OPTS INVALID_OPT VALUE_REQUIRED $opt] \
-              " option \"$opt\" expects a value \"[dict get $odef schema $opt]\" but none was provided"
+            tailcall return -code error -errorCode [list PROC_OPTS INVALID_OPT VALUE_REQUIRED $opt] " option \"$opt\" expects a value \"[dict get $odef schema $opt]\" but none was provided"
           }
           dict set opts $opt $val
           dict lappend opts -- $opt $val
@@ -55,16 +52,12 @@ proc ::optcmds::eatargs {argnames odef} {
   } else {
     foreach name [lrange $argnames 0 end-1] {
       if {![llength $args]} {
-        tailcall return \
-          -code error \
-          -errorCode [list TCL WRONGARGS] \
-          "wrong #args: should be \"$argnames\""
+        tailcall return -code error -errorCode [list TCL WRONGARGS] "wrong #args: should be \"$argnames\""
       }
       set args  [lassign $args val]
       uplevel 1 [list set $name $val]
     }
   }
-
   if {$name eq {}} {
     uplevel 1 {
       dict with {} {}
@@ -92,13 +85,9 @@ proc ::optcmds::define {kind name pargs body args} {
       " option procs may not use the arg name \"opts\""
   }
 
-  set oargs   [lrange $pargs 0 ${oindex}-1]
+  set oargs [lrange $pargs 0 ${oindex}-1]
   set olength [llength $oargs]
-  set odef [dict create \
-    schema   [dict create -- {}] \
-    defaults [dict create] \
-    params   [dict create]
-  ]
+  set odef [dict create schema [dict create -- {}] defaults [dict create] params [dict create]]
 
   if {[info exists opts]} {
     puts "opts! $opts"
@@ -136,12 +125,8 @@ proc ::optcmds::define {kind name pargs body args} {
   set process [format {::optcmds::eatargs [list %s] [dict create %s]} $argnames $odef]
 
   switch -- $kind {
-    apply {
-      set cmd [list ::apply [list args [join [list $process $body] \;] $name] {*}$args]
-    }
-    default {
-      set cmd [format {%s %s args {%s;%s}} $kind $name $process $body]
-    }
+    apply   { set cmd [list ::apply [list args [join [list $process $body] \;] $name] {*}$args] }
+    default { set cmd [format {%s %s args {%s;%s}} $kind $name $process $body] }
   }
 
   if {[info exists opts] && [dict exists $opts -define]} {
