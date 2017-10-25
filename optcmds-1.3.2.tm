@@ -1,11 +1,13 @@
-# this is being used to do a quick benchmark of how tclquadcode will affect
-# the speed of such procedures as optcmds
+# For More Information:
+# https://github.com/Dash-OS/tcl-modules/blob/master/docs/TIP-480.md
+
+# For Examples:
+# https://github.com/Dash-OS/tcl-modules/blob/master/examples/optcmds.tcl
 
 namespace eval ::optcmds {
   namespace export oproc omethod oapply
 }
 
-# parsed received $args when the given command is invoked
 proc ::optcmds::eatargs {argnames odef} {
   upvar 1 args args
   set name [dict get $odef name]
@@ -146,7 +148,6 @@ proc ::optcmds::define {kind name pargs body args} {
   }
 
   if {[info exists opts(-define)]} {
-    # when this becomes optcmd itself, -define returns $cmd instead of invokes
     return $cmd
   } else {
     uplevel 1 $cmd
@@ -161,30 +162,20 @@ proc ::optcmds::define {kind name pargs body args} {
 #
 # this allows us to have the definition returns so we can either save it
 # in the case of apply or use it to pass to ::oo::define {*}[omethod ...]
-
-# now lets make define itself an oproc!
 ::optcmds::define \
 proc ::optcmds::define [list -define -noopts -opts {optsName opts} -optsdict -- {*}[info args ::optcmds::define]] [info body ::optcmds::define]
 
-# and oproc becomes an oproc as well
 ::optcmds::define \
 proc ::optcmds::oproc {-define -noopts -opts {optsName opts} -optsdict -- name pargs body} {
   tailcall ::optcmds::define {*}$opts() -- proc $name $pargs $body
 }
 
-# as does omethod
 ::optcmds::define \
 proc ::optcmds::omethod {-define -noopts -opts {optsName opts} -optsdict -- name pargs body} {
   tailcall ::optcmds::define {*}$opts() -- method $name $pargs $body
 }
 
-# and oapply
 ::optcmds::define \
 proc ::optcmds::oapply {-define -noopts -opts {optsName opts} -optsdict -- spec args} {
   tailcall ::optcmds::define {*}$opts() -- apply [lindex $spec 2] [lindex $spec 0] [lindex $spec 1] {*}$args
 }
-
-#
-# oproc -define myproc {-all -inline -not -upvar varName -- one two args} {
-#   if {[dict exists $opts -all]} {}
-# }
