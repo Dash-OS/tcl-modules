@@ -65,7 +65,7 @@ As well as a few other tools which you may find helpful when working with Tcl.
 
 ## Package Summaries
 
-Below you can find a few examples of some of the modules found in this repo.  Most of the packages are documented inline to the source so be sure to check those out.
+Below you can find a few examples of some of the modules found in this repo.  **Most of the packages are documented inline to the source** so be sure to check those out.
 
 ### Table Of Contents
 
