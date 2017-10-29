@@ -411,17 +411,20 @@ published to.
 
 <details>
 <summary>
-<b>Publishing to a Path</b>
+<b>Subscribing to a Path</b>
 </summary>
 <p>
 
 **`pubsub subscribe id ?...path? callback`**
 
 ```tcl
+# Basic
 pubsub subscribe MySubscription MY_EVENT my_proc
+
 # Multiple
 pubsub subscribe MySubscription2 MY_EVENT my_proc
 pubsub subscribe MySubscription3 MY_EVENT my_proc
+
 # Nested Paths
 pubsub subscribe B1Press   button_one pressed  my_proc
 pubsub subscribe B1Release button_one release  my_proc
@@ -458,6 +461,7 @@ if { ! [ pubsub dispatch [dict create foo bar] button_one pressed ] } {
 <p>
 
 **`pubsub unsubscribe id`**
+
 **`pubsub unsubscribe_path ?...path?`**
 
 ```tcl
