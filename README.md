@@ -409,7 +409,11 @@ puts ":: | myvar $myvar"
 handling the execution of one or more commands when a given message/path is
 published to.
 
-#### Subscribing to a Path
+<details>
+<summary>
+<b>Publishing to a Path</b>
+</summary>
+<p>
 
 **`pubsub subscribe id ?...path? callback`**
 
@@ -423,7 +427,14 @@ pubsub subscribe B1Press   button_one pressed  my_proc
 pubsub subscribe B1Release button_one release  my_proc
 ```
 
-#### Publishing to a Path
+</p>
+</details>
+
+<details>
+<summary>
+<b>Dispatching to a Path</b>
+</summary>
+<p>
 
 **`pubsub dispatch data ?...path?`**
 
@@ -437,7 +448,14 @@ if { ! [ pubsub dispatch [dict create foo bar] button_one pressed ] } {
 }
 ```
 
-#### Unsubscribing by ID or Path
+</p>
+</details>
+
+<details>
+<summary>
+<b>Unsubscribing by ID or Path</b>
+</summary>
+<p>
 
 **`pubsub unsubscribe id`**
 **`pubsub unsubscribe_path ?...path?`**
@@ -447,7 +465,14 @@ pubsub unsubscribe MySubscription
 pubsub unsubscribe_path MY_EVENT
 ```
 
-#### Triggering a Subscription by ID
+</p>
+</details>
+
+<details>
+<summary>
+<b>Triggering a Subscription by ID</b>
+</summary>
+<p>
 
 **`pubsub trigger id`**
 
@@ -455,7 +480,14 @@ pubsub unsubscribe_path MY_EVENT
 pubsub trigger MySubscription
 ```
 
-#### Resetting / Removing all Subscriptions
+</p>
+</details>
+
+<details>
+<summary>
+<b>Resetting / Removing all Subscriptions</b>
+</summary>
+<p>
 
 **`pubsub reset`**
 
@@ -463,8 +495,10 @@ pubsub trigger MySubscription
 pubsub reset
 ```
 
----
+</p>
+</details>
 
+---
 
 ### `ensembled`
 
