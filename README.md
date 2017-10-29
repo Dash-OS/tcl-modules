@@ -19,8 +19,7 @@ Would love to collect any other "awesome" and useful Tcl procedures that you fin
 ## Auto Updated
 
 This repo is automatically maintained by our build system.  Any time that a file
-is changed, the bot will update the versioning based on the overall changes
-that have occurred in the file and by how much it is likely that it has changed.
+is changed, the bot will commit it.  While it used to auto-increment the version, filename changes does not go well with github (links change for sources, etc), it will simply add a commit message with the version of the repo when it was updated.  
 
 ## Installation
 
@@ -66,9 +65,7 @@ As well as a few other tools which you may find helpful when working with Tcl.
 
 ## Package Summaries
 
-I will try to provide a basic idea of some of the modules as time goes on. The
-source for the modules will often include extra information & comments to aid in
-using the package(s).
+Below you can find a few examples of some of the modules found in this repo.  Most of the packages are documented inline to the source so be sure to check those out.
 
 ### Table Of Contents
 
