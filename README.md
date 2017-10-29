@@ -49,13 +49,19 @@ package require extend::dict
 # ... your script ... #
 ```
 
-## Additional Packages
+## Additional Modules
 
 In addition to these modules, there are a couple separate repos which can be considered apart of the "tcl-modules" repository.
 
  - [cluster](https://github.com/Dash-OS/tcl-cluster) - multi-protocol one-to-many IPC/IMC framework with auto-discovery and protocol-failover (a replacement for the comm package).
  - [task-manager](https://github.com/Dash-OS/tcl-task-manager) - a task scheduler in pure-tcl.  Think of it like an extremely powerful `[after]` which includes capabilities like `[every]`, `[every/while]`, `[after/at]`, `[after/if]`, and much more.
- - [sagas](https://github.com/Dash-OS/tcl-sagas) - a (unfinished) concurrency library allowing the scheduling of coroutines which provide a mechanism for handling cancellation, asynchronous closures, and lifecycle management.
+ - [sagas](https://github.com/Dash-OS/tcl-sagas) - a (mostly-finished) concurrency library allowing the scheduling of coroutines which provide a mechanism for handling cancellation, asynchronous closures, and lifecycle management.
+
+## Additional Tools
+
+As well as a few other tools which you may find helpful when working with Tcl.
+
+ - [kit-creator](https://github.com/Dash-OS/tcl-kit-creator) - a custom fork of rkeene's [kitcreator](https://kitcreator.rkeene.org/fossil/index) which adds some organization and some extra extension build scripts.  For example, one may add "tcl-modules" to automatically download and compile this repo (as well as task and cluster) into a custom tcl-executable.
 
 ## Package Summaries
 
