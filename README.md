@@ -62,6 +62,7 @@ In addition to these modules, there are a couple separate repos which can be con
 As well as a few other tools which you may find helpful when working with Tcl.
 
  - [kit-creator](https://github.com/Dash-OS/tcl-kit-creator) - a custom fork of rkeene's [kitcreator](https://kitcreator.rkeene.org/fossil/index) which adds some organization and some extra extension build scripts.  For example, one may add "tcl-modules" to automatically download and compile this repo (as well as task and cluster) into a custom tcl-executable.
+ - [atom-language-dashtcl](https://github.com/Dash-OS/atom-language-dashtcl) - Special syntax highlighting for tcl that is aware of the context of many built-in commands as well as various tcl-modules such as `[state]` and `[graphql]`.
 
 ## Package Summaries
 
