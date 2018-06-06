@@ -187,7 +187,7 @@ Component create Login {
       key      username \
       label    "Username" \
       value    [dict get $STATE username] \
-      onChange [callback my onInputChanged password]
+      onChange [callback my onInputChanged username]
     *TextInput \
       key      password \
       label    "Password" \
